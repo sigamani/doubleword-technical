@@ -1,4 +1,4 @@
-# doubleword-technical
+# Inference Server PoC
 
 PoC batch inference stack for running small language models across multiple GPU
 workers with monitoring, load balancing, and a FastAPI front-end.
