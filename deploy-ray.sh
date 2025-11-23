@@ -8,7 +8,7 @@ set -e
 # Default values
 MODE="all"
 ENV_FILE=".env"
-COMPOSE_FILE="docker-compose-ray.yml"
+    COMPOSE_FILE="docker-compose-ray-data.yml"
 PROJECT_NAME="ray-vllm-inference"
 
 # Colors for output

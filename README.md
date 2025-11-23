@@ -1,4 +1,26 @@
-# Inference Server PoC
+# Ray + vLLM Multi-Node Batch Inference System
+
+## 🚀 IMPORTANT: Ray Data Batch Inference
+
+This project uses **Ray Data** for distributed batch inference, following to official documentation:
+https://docs.ray.io/en/latest/data/batch_inference.html
+
+### Key Pattern:
+```python
+# Ray Data map_batches for distributed vLLM inference
+ds.map_batches(
+    vllm_inference,
+    num_gpus=1,  # Each actor gets 1 GPU
+    concurrency=2,  # 2 parallel actors (one per node)
+    batch_size=4   # Optimize batch size for GPU utilization
+)
+```
+
+This approach provides:
+- **Intelligent GPU orchestration** across nodes
+- **Automatic load balancing** via Ray scheduler
+- **Scalable batch processing** with optimal resource utilization
+- **Fault tolerance** with automatic actor recovery
 
 PoC batch inference stack for running small language models across multiple GPU
 workers with monitoring, load balancing, and a FastAPI front-end.
