@@ -1,0 +1,21 @@
+model:
+  name: "Qwen/Qwen2.5-0.5B-Instruct"
+  max_model_len: 32768
+  tensor_parallel_size: 1
+
+inference:
+  batch_size: 128
+  concurrency: 2
+  gpu_memory_utilization: 0.90
+  temperature: 0.7
+  max_tokens: 512
+
+data:
+  input_path: "s3://bucket/sharegpt_sample.json"
+  output_path: "/tmp/output.json"
+  num_samples: 100
+
+sla:
+  target_hours: 24
+  buffer_factor: 0.7
+  alert_threshold_hours: 20
