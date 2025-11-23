@@ -24,7 +24,12 @@ def start_head_node():
     
     print(f"🚀 Ray Head Node Started")
     print(f"📍 Dashboard: http://localhost:8265")
-    print(f"🔗 Head address: {ray.get_dashboard_url()}")
+    # Get dashboard URL safely
+    try:
+        dashboard_url = ray.util.client.ray.get_dashboard_url()
+    except:
+        dashboard_url = "http://localhost:8265"
+    print(f"🔗 Head address: {dashboard_url}")
     
     # Get the actual head address for workers to connect
     import socket
