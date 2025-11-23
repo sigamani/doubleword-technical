@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  ray-head:
+    image: michaelsigamani/proj-grounded-telescopes:0.1.0
+    container_name: ray-head
+    hostname: ray-head
+    ports:
+      - "${HEAD_DASHBOARD_PORT:-8265}:8265"  # Ray dashboard
+      - "${HEAD_API_PORT:-8000}:8000"      # Ray Serve API
+      - "${METRICS_PORT:-8001}:8001"       # Prometheus metrics
+    environment:
+      - RAY_MODE=head
+      - RAY_PASSWORD=${RAY_PASSWORD:-ray123}
+      - MODEL_NAME=${MODEL_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
+      - REDIS_PASSWORD=${RAY_PASSWORD:-ray123}
+      - WORKER_ID=ray-head-node
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ray_head_storage:/tmp/ray
+      - model_cache:/model:ro
+      - ./app:/app
+    networks:
+      - ray-network
+    command: >
+      bash -c "
+        ray start --head --dashboard-host=0.0.0.0 --dashboard-port=8265 --redis-password=ray123 &&
+        cd /app &&
+        python ray_serve_vllm_simple.py
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ray-worker:
+    image: michaelsigamani/proj-grounded-telescopes:0.1.0
+    depends_on:
+      ray-head:
+        condition: service_healthy
+    environment:
+      - RAY_MODE=worker
+      - RAY_PASSWORD=${RAY_PASSWORD:-ray123}
+      - MODEL_NAME=${MODEL_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
+      - HEAD_ADDRESS=ray-head:6379
+      - WORKER_ID=ray-worker-${WORKER_ID:-1}
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ray_worker_storage:/tmp/ray
+      - model_cache:/model:ro
+      - ./app:/app
+    networks:
+      - ray-network
+    command: >
+      bash -c "
+        ray start --address=ray-head:6379 --redis-password=ray123 --num-gpus=1 &&
+        cd /app &&
+        python ray_serve_vllm_simple.py worker ray-head:6379
+      "
+    restart: unless-stopped
+    deploy:
+      replicas: ${WORKER_COUNT:-1}
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Fallback Nginx load balancer (only if Ray Serve fails)
+  nginx-fallback:
+    image: nginx:alpine
+    container_name: nginx-fallback
+    ports:
+      - "${NGINX_FALLBACK_PORT:-8080}:80"
+    volumes:
+      - ./config/nginx-ray-fallback.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ray-head
+      - ray-worker
+    networks:
+      - ray-network
+    restart: unless-stopped
+    profiles:
+      - fallback
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ray-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./config/prometheus-ray.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - ray-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ray-grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - ray-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # Health check and routing monitor
+  health-monitor:
+    image: alpine:latest
+    container_name: ray-health-monitor
+    volumes:
+      - ./scripts:/scripts:ro
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        while true; do
+          echo 'Checking Ray Serve health...'
+          if curl -f http://ray-head:8000/health > /dev/null 2>&1; then
+            echo 'Ray Serve healthy'
+          else
+            echo 'Ray Serve unhealthy, checking fallback...'
+            if curl -f http://nginx-fallback/health > /dev/null 2>&1; then
+              echo 'Nginx fallback healthy'
+            else
+              echo 'Both systems unhealthy'
+            fi
+          fi
+          sleep 30
+        done
+      "
+    networks:
+      - ray-network
+    depends_on:
+      ray-head:
+        condition: service_healthy
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+volumes:
+  ray_head_storage:
+  ray_worker_storage:
+  model_cache:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  ray-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
