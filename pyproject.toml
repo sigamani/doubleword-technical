@@ -79,6 +79,8 @@ Issues = "https://github.com/michaelsigamani/doubleword-technical/issues"
 [project.scripts]
 batch-inference = "app.batch_inference_vllm_fixed:main"
 api-server = "app.api_server_simple:main"
+ray-cluster = "setup:main"
+ray-setup = "ray-setup:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
