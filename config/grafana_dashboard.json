@@ -1,0 +1,198 @@
+{
+  "dashboard": {
+    "title": "Ray Data + vLLM Batch Inference",
+    "tags": ["ray", "vllm", "batch-inference"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Throughput (requests/sec)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(ray_data_inference_requests_total[1m])",
+            "legendFormat": "{{job_id}}"
+          }
+        ],
+        "yaxes": [{"label": "req/s", "format": "short"}]
+      },
+      {
+        "id": 2,
+        "title": "Token Throughput (tokens/sec)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(ray_data_tokens_processed_total[1m])",
+            "legendFormat": "{{node_id}}"
+          }
+        ],
+        "yaxes": [{"label": "tokens/s", "format": "short"}]
+      },
+      {
+        "id": 3,
+        "title": "Inference Latency (P95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, ray_data_inference_duration_seconds_bucket)",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, ray_data_inference_duration_seconds_bucket)",
+            "legendFormat": "P99"
+          }
+        ],
+        "yaxes": [{"label": "seconds", "format": "s"}]
+      },
+      {
+        "id": 4,
+        "title": "SLA Status (ETA vs Remaining Time)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_eta_hours",
+            "legendFormat": "ETA {{job_id}}"
+          },
+          {
+            "expr": "ray_data_sla_remaining_hours",
+            "legendFormat": "Remaining {{job_id}}"
+          }
+        ],
+        "yaxes": [{"label": "hours", "format": "short"}]
+      },
+      {
+        "id": 5,
+        "title": "GPU Memory Usage (%)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_gpu_memory_used_percent",
+            "legendFormat": "{{node_id}}/GPU{{gpu_id}}"
+          }
+        ],
+        "yaxes": [{"label": "%", "format": "percent", "max": 100}]
+      },
+      {
+        "id": 6,
+        "title": "Active Batches",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_active_batches",
+            "legendFormat": "Active"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Error Rate",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(ray_data_inference_errors_total[5m]) / rate(ray_data_inference_requests_total[5m])",
+            "legendFormat": "Error Rate"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Batch Queue Size",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_batch_queue_size",
+            "legendFormat": "Pending Jobs"
+          }
+        ],
+        "yaxes": [{"label": "jobs", "format": "short"}]
+      },
+      {
+        "id": 9,
+        "title": "Completed Batches (cumulative)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_inference_requests_total",
+            "legendFormat": "Total"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Worker Status",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 32, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "ray_data_worker_status",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Model Load Time (histogram)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 40, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, ray_data_model_load_time_seconds_bucket)",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, ray_data_model_load_time_seconds_bucket)",
+            "legendFormat": "P95"
+          }
+        ],
+        "yaxes": [{"label": "seconds", "format": "s"}]
+      },
+      {
+        "id": 12,
+        "title": "Resource Utilization Dashboard",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 40, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(ray_data_gpu_utilization_percent)",
+            "legendFormat": "Avg GPU %"
+          }
+        ]
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 30,
+    "style": "dark",
+    "templating": {
+      "list": [
+        {
+          "name": "job_id",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(ray_data_eta_hours, job_id)"
+        },
+        {
+          "name": "node_id",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(ray_data_gpu_memory_used_percent, node_id)"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]},
+    "uid": "ray-batch-inference",
+    "version": 1
+  }
+}

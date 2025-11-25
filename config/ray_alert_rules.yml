@@ -1,0 +1,114 @@
+groups:
+  - name: ray_batch_inference
+    interval: 30s
+    rules:
+      # SLA Violation: ETA exceeds remaining time window
+      - alert: SLAAtRisk
+        expr: |
+          ray_data_eta_hours > on(job_id) ray_data_sla_remaining_hours
+        for: 5m
+        labels:
+          severity: critical
+          component: sla_tracking
+        annotations:
+          summary: "Batch job {{ $labels.job_id }} SLA at risk"
+          description: "ETA {{ $value }}h exceeds remaining {{ $labels.sla_remaining }}h"
+      
+      # High GPU memory usage
+      - alert: GPUMemoryHigh
+        expr: |
+          ray_data_gpu_memory_used_percent > 90
+        for: 2m
+        labels:
+          severity: warning
+          component: gpu_utilization
+        annotations:
+          summary: "GPU memory usage high on {{ $labels.node_id }}"
+          description: "GPU {{ $labels.gpu_id }} memory at {{ $value }}%"
+      
+      # Low throughput detection
+      - alert: ThroughputDegraded
+        expr: |
+          rate(ray_data_inference_requests_total[5m]) < 5
+        for: 10m
+        labels:
+          severity: warning
+          component: throughput
+        annotations:
+          summary: "Batch inference throughput degraded"
+          description: "Current throughput: {{ $value }} req/s (target: >5 req/s)"
+      
+      # Ray worker crash
+      - alert: RayWorkerCrashed
+        expr: |
+          rate(ray_data_worker_failures_total[1m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: ray_workers
+        annotations:
+          summary: "Ray worker crash detected"
+          description: "Worker failures on {{ $labels.node_id }}: {{ $value }}"
+      
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          rate(ray_data_inference_errors_total[5m]) / rate(ray_data_inference_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: error_rate
+        annotations:
+          summary: "Batch inference error rate elevated"
+          description: "Error rate: {{ $value | humanizePercentage }} (threshold: 5%)"
+      
+      # Batch queue buildup (too many pending jobs)
+      - alert: BatchQueueBacklog
+        expr: |
+          ray_data_batch_queue_size > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: queue_management
+        annotations:
+          summary: "Batch job queue backlog detected"
+          description: "{{ $value }} jobs pending in queue"
+      
+      # Low disk space for output
+      - alert: LowDiskSpace
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/outputs"} / node_filesystem_size_bytes{mountpoint="/outputs"} < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "Output storage running low on {{ $labels.device }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+
+  - name: ray_performance
+    interval: 30s
+    rules:
+      # High inference latency
+      - alert: HighInferenceLatency
+        expr: |
+          histogram_quantile(0.95, ray_data_inference_duration_seconds_bucket) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: latency
+        annotations:
+          summary: "High inference latency detected"
+          description: "P95 latency: {{ $value }}s (threshold: 5s)"
+      
+      # Token throughput below baseline
+      - alert: TokenThroughputLow
+        expr: |
+          rate(ray_data_tokens_processed_total[5m]) < 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: token_throughput
+        annotations:
+          summary: "Token throughput below baseline"
+          description: "Current: {{ $value }} tokens/s (baseline: >1000 tokens/s)"

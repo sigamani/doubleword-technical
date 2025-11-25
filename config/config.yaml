@@ -1,0 +1,27 @@
+model:
+  name: "Qwen/Qwen2.5-0.5B-Instruct"
+  max_model_len: 32768
+  tensor_parallel_size: 1
+  enable_chunked_prefill: true
+  chunked_prefill_size: 8192
+  speculative_model: "Qwen/Qwen2.5-0.5B-Instruct"
+  num_speculative_tokens: 5
+  speculative_draft_tensor_parallel_size: 1
+
+inference:
+  batch_size: 256
+  concurrency: 4
+  max_num_batched_tokens: 16384
+  gpu_memory_utilization: 0.85
+  temperature: 0.7
+  max_tokens: 512
+
+data:
+  input_path: "s3://bucket/sharegpt_sample.json"
+  output_path: "/tmp/output.json"
+  num_samples: 100000
+
+sla:
+  target_hours: 24
+  buffer_factor: 0.7
+  alert_threshold_hours: 20

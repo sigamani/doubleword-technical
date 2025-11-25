@@ -1,0 +1,140 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doubleword-batch-inference"
+version = "0.1.0"
+description = "Ray Data + vLLM Batch Inference with 24-hour SLA"
+authors = [
+    {name = "Michael Sigamani", email = "michael.sigamani@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    # Core Ray and vLLM - VERIFIED WORKING VERSIONS
+    "ray[data]==2.49.1",
+    "vllm==0.10.0",
+    
+    # ML/AI Libraries
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "datasets>=2.10.0",
+    "pyyaml>=6.0",
+    "requests>=2.28.0",
+    
+    # NVIDIA ML Libraries
+    "nvidia-ml-py>=3.1.0",
+    
+    # Monitoring and Metrics
+    "prometheus-client>=0.14.0",
+    
+    # Job Queue and Storage
+    "redis>=4.0.0",
+    
+    # API and Web
+    "fastapi>=0.68.0",
+    "uvicorn[standard]>=0.15.0",
+    "pydantic>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.18.0",
+    "black>=21.0.0",
+    "flake8>=3.9.0",
+    "mypy>=0.910",
+]
+
+test = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.18.0",
+    "httpx>=0.20.0",  # For async API testing
+]
+
+monitoring = [
+    "prometheus-client>=0.14.0",
+    "grafana-api>=1.0.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/michaelsigamani/doubleword-technical"
+Repository = "https://github.com/michaelsigamani/doubleword-technical"
+Issues = "https://github.com/michaelsigamani/doubleword-technical/issues"
+
+[project.scripts]
+batch-inference = "app.batch_inference_vllm_fixed:main"
+api-server = "app.api_server_simple:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "config*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ray.*",
+    "vllm.*",
+    "transformers.*",
+    "datasets.*",
+    "prometheus_client.*",
+]
+ignore_missing_imports = true
