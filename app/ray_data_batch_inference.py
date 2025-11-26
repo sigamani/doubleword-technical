@@ -9,6 +9,10 @@ import time
 import sys
 import yaml
 import logging
+import asyncio
+import nest_asyncio
+import hashlib
+import json
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
@@ -22,9 +26,10 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
 # Configure logging
@@ -46,6 +51,9 @@ active_batches = Gauge("ray_data_active_batches", "Active Ray Data batches")
 
 throughput_gauge = Gauge("ray_data_throughput_requests_per_sec", "Current throughput")
 
+# Authentication
+security = HTTPBearer(auto_error=False)
+
 # Pydantic models
 class BatchInferenceRequest(BaseModel):
     prompts: List[str]
@@ -64,6 +72,25 @@ class BatchInferenceResponse(BaseModel):
     total_prompts: int
     throughput: float
 
+class MultimodalInput(BaseModel):
+    text: str = Field(default="")
+    image_url: str = Field(default="")
+    audio_url: str = Field(default="")
+    video_url: str = Field(default="")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class AuthBatchJobRequest(BaseModel):
+    input_path: str
+    output_path: str
+    num_samples: int = Field(ge=1, le=100000, default=1000)
+    max_tokens: int = Field(ge=1, le=2048, default=512)
+    temperature: float = Field(ge=0.0, le=2.0, default=0.7)
+    batch_size: int = Field(ge=1, le=1000, default=128)
+    concurrency: int = Field(ge=1, le=10, default=2)
+    sla_tier: str = Field(default="basic")  # free, basic, premium, enterprise
+    model_type: str = Field(default="text")  # text, multimodal
+    multimodal_inputs: List[MultimodalInput] = Field(default_factory=list)
+
 class BatchJobRequest(BaseModel):
     input_path: str
     output_path: str
@@ -80,12 +107,21 @@ class BatchJobResponse(BaseModel):
     estimated_completion_hours: float
 
 @dataclass
+class DataArtifact:
+    sha256_hash: str
+    content_hash: str
+    version: str
+    created_at: float
+    size_bytes: int
+
+@dataclass
 class BatchMetrics:
     total_requests: int
     completed_requests: int = 0
     failed_requests: int = 0
     start_time: float = 0.0
     tokens_processed: int = 0
+    artifact_id: str = ""
     
     def __post_init__(self):
         if self.start_time == 0.0:
@@ -106,13 +142,36 @@ class BatchMetrics:
         remaining = self.total_requests - self.completed_requests
         return (remaining / throughput) / 3600
     
+    def optimal_batch_size(self, model_size_gb: float, available_memory_gb: float) -> int:
+        """Calculate optimal batch size based on model size and available memory"""
+        # Rule of thumb: batch_size = floor(available_memory * 0.7 / model_size_gb)
+        memory_for_batch = available_memory * 0.7
+        optimal_size = int(memory_for_batch / model_size_gb)
+        return max(1, min(optimal_size, 512))  # Cap at 512
+    
+    def tokens_per_second_target(self, target_hours: float = 24.0) -> float:
+        """Calculate required tokens/sec to meet SLA target"""
+        if self.total_requests == 0:
+            return 0
+        avg_tokens_per_request = self.tokens_processed / max(1, self.completed_requests)
+        required_tokens_per_sec = (self.total_requests * avg_tokens_per_request) / (target_hours * 3600)
+        return required_tokens_per_sec
+    
     def progress_pct(self) -> float:
         return (self.completed_requests / self.total_requests) * 100
 
+class SLATier:
+    FREE = {"name": "free", "hours": 72, "priority": 1}
+    BASIC = {"name": "basic", "hours": 24, "priority": 2}
+    PREMIUM = {"name": "premium", "hours": 12, "priority": 3}
+    ENTERPRISE = {"name": "enterprise", "hours": 6, "priority": 4}
+
 class InferenceMonitor:
-    def __init__(self, metrics: BatchMetrics, sla_hours: float, log_interval: int = 100):
+    def __init__(self, metrics: BatchMetrics, sla_tier: dict, log_interval: int = 100):
         self.metrics = metrics
-        self.sla_hours = sla_hours
+        self.sla_tier = sla_tier
+        self.sla_hours = sla_tier["hours"]
+        self.priority = sla_tier["priority"]
         self.log_interval = log_interval
         self.last_log = 0
     
@@ -143,7 +202,7 @@ class InferenceMonitor:
         # Add small buffer to avoid false positives when ETA == remaining time
         buffer = 0.1  # 0.1 hour buffer
         if eta > remaining_hours + buffer:
-            logger.warning(f"SLA AT RISK! ETA {eta:.2f}h > Remaining {remaining_hours:.2f}h")
+            logger.warning(f"SLA AT RISK! Tier {self.sla_tier['name']} ETA {eta:.2f}h > Remaining {remaining_hours:.2f}h")
             return False
         return True
 
@@ -189,6 +248,10 @@ def load_config() -> Dict[str, Any]:
                 "target_hours": 24,
                 "buffer_factor": 0.7,
                 "alert_threshold_hours": 20
+            },
+            "storage": {
+                "local_path": "/tmp/artifacts",
+                "s3_bucket": "batch-inference-artifacts"  # Production S3 bucket
             }
         }
         logger.info("Using default configuration")
@@ -217,6 +280,12 @@ def initialize_redis():
         redis_client = None
 
 def initialize_ray_cluster():
+    import asyncio
+    import nest_asyncio
+    
+    # Apply nest_asyncio to allow event loop nesting
+    nest_asyncio.apply()
+    
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
         # Worker mode
         head_address = sys.argv[2] if len(sys.argv) > 2 else "localhost:6379"
@@ -253,6 +322,17 @@ def build_vllm_processor():
             "speculative_model": config["model"].get("speculative_model"),
             "num_speculative_tokens": config["model"].get("num_speculative_tokens", 5),
             "speculative_draft_tensor_parallel_size": config["model"].get("speculative_draft_tensor_parallel_size", 1),
+            # KV Cache optimization
+            "kv_cache_config": {
+                "enable_prefix_caching": config["model"].get("enable_prefix_caching", True),
+                "max_cache_size": config["model"].get("max_kv_cache_size", 4096),
+                "cache_dtype": "fp16"  # Use half-precision for cache
+            },
+            # Prompt caching for repeated prompts
+            "prompt_cache_config": {
+                "enable_prompt_cache": config["model"].get("enable_prompt_cache", True),
+                "max_prompt_cache_size": config["model"].get("max_prompt_cache_size", 1024)
+            }
         }
     )
     
@@ -292,6 +372,41 @@ def build_vllm_processor():
     )
     
     logger.info("vLLM processor built successfully")
+
+def run_batch_inference(prompts: List[str]) -> tuple:
+    """Run batch inference using Ray Data and vLLM processor"""
+    global processor, monitor, metrics
+    
+    if not processor:
+        raise Exception("vLLM processor not initialized")
+    
+    try:
+        # Create Ray Dataset from prompts
+        ds = ray.data.from_items([{"prompt": prompt} for prompt in prompts])
+        logger.info(f"Created dataset with {ds.count()} samples")
+        
+        # Initialize metrics for this batch
+        if metrics is None:
+            metrics = BatchMetrics(total_requests=len(prompts))
+            monitor = InferenceMonitor(metrics, sla_hours=config["sla"]["target_hours"])
+        
+        # Run inference using the processor
+        logger.info("Starting batch inference...")
+        start_time = time.time()
+        
+        result_ds = processor(ds)
+        results = result_ds.take_all()
+        
+        inference_time = time.time() - start_time
+        
+        logger.info(f"Batch inference completed in {inference_time:.2f} seconds")
+        logger.info(f"Processed {len(results)} samples")
+        
+        return results, inference_time
+        
+    except Exception as e:
+        logger.error(f"Batch inference failed: {e}")
+        raise
 
 
 app = FastAPI(title="Ray Data vLLM Batch Inference", version="1.0.0")
@@ -358,8 +473,20 @@ async def generate_batch(request: BatchInferenceRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify bearer token"""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Bearer token required")
+    
+    # Simple token validation (in production, use proper JWT)
+    token = credentials.credentials
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    return token
+
 @app.post("/start", response_model=BatchJobResponse)
-async def start_batch_job(request: BatchJobRequest):
+async def start_batch_job(request: BatchJobRequest, token: str = Depends(verify_token)):
     """Start a batch inference job with job_id and SLA tracking"""
     import uuid
     
@@ -378,25 +505,45 @@ async def start_batch_job(request: BatchJobRequest):
         
         # Initialize metrics for this job
         global metrics, monitor, redis_client
+        sla_tier_config = getattr(SLATier, request.sla_tier.upper(), SLATier.BASIC)
         metrics = BatchMetrics(total_requests=request.num_samples)
-        monitor = InferenceMonitor(metrics, sla_hours=config["sla"]["target_hours"])
+        monitor = InferenceMonitor(metrics, sla_tier=sla_tier_config)
+        
+        # Create data artifact for input
+        input_data = [{"prompt": f"sample_prompt_{i}"} for i in range(request.num_samples)]
+        input_artifact = create_data_artifact(input_data)
+        metrics.artifact_id = input_artifact.sha256_hash[:16]
         
         # Add job to Redis queue if available
         if redis_client:
+            # Create data artifact for input
+            input_data = [{"prompt": f"sample_prompt_{i}"} for i in range(request.num_samples)]
+            input_artifact = create_data_artifact(input_data)
+            
             job_data = {
                 "job_id": job_id,
                 "input_path": request.input_path,
                 "output_path": request.output_path,
                 "num_samples": request.num_samples,
                 "status": "queued",
-                "created_at": time.time()
+                "created_at": time.time(),
+                "auth_token": token[:10] + "...",  # Store partial token for audit
+                "input_artifact": input_artifact.sha256_hash,
+                "artifact_version": input_artifact.version
             }
             redis_client.hset(f"job:{job_id}", mapping=job_data)
             redis_client.lpush("batch_job_queue", job_id)
-            logger.info(f"Job {job_id} added to Redis queue")
+            
+            # Store artifact locally (S3 in production)
+            storage_path = config.get("storage", {}).get("local_path", "/tmp/artifacts")
+            os.makedirs(storage_path, exist_ok=True)
+            store_artifact(input_artifact, storage_path)
+            
+            logger.info(f"Job {job_id} added to Redis queue with token validation and artifact storage")
         
-        # Estimate completion time based on baseline throughput
-        baseline_throughput = 10.0  # requests per second (conservative estimate)
+        # Estimate completion time based on tier and baseline throughput
+        sla_tier_config = getattr(SLATier, request.sla_tier.upper(), SLATier.BASIC)
+        baseline_throughput = 10.0 * sla_tier_config["priority"]  # priority multiplier
         estimated_hours = request.num_samples / baseline_throughput / 3600
         
         logger.info(f"Started batch job {job_id} with {request.num_samples} samples")

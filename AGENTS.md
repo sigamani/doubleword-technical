@@ -4,15 +4,16 @@
 
 **CRITICAL**: All work happens on a rented Ubuntu VM from vast.ai, NOT locally.
 
-1. **SSH Access**: SSH credentials to access the 2 worker node Ubuntu VMs: ssh -p 55089 root@77.104.167.149 -L 8080:localhost:8080 AND ssh -p 55089 root@77.104.167.149 -L 8080:localhost:8080.
+1
 2. **Verify Docker**: Run `docker ps` to check running containers
-3. **Pull Image if Needed**: If image not present, run `docker pull michaelsigamani/proj-grounded-telescopes`
-4. **Container Rule**: ALL code execution MUST happen inside the `michaelsigamani/proj-grounded-telescopes` container unless explicitly told otherwise
-5. The github repository for this project that you are in a git clone of is located here: gh repo clone sigamani/proj-grounded-telescopes
-6. env vars or any credentials you might need always check here first: source ~/.env
-7. Validate SLA tracking and 24-hour completion monitoring works correctly
-8. Run test matrix to validate different configurations (batch size, concurrency, model sizes)
-9. Set up monitoring dashboards (Prometheus/Grafana) for production observability
+3. **Build and run lightweight dev Image**: Dockerfile.dev this is made to be lightweight for faster iteration and testing in github codespace. Use this for development and testing before moving to the full image. No GPU acceleration. 
+   ```bash
+   docker build -f Dockerfile.dev -t proj-grounded-telescopes-dev .
+   docker run -it --rm -v $(pwd):/app proj-grounded-telescopes-dev /bin/bash
+   ```
+4. **Container Rule**: Do not install python packgages outside of the docker container unless needed to keep the space light. We only have 30 GiG to test. All packages will be build inside the Dockerfile.dev container.
+5. The github repository for this project that you are in a git clone of is located here: [gh repo clone sigamani/proj-grounded-telescopes](https://github.com/sigamani/doubleword-technical)
+
 ---
 
 ## System Diagram
@@ -88,25 +89,16 @@
 
 ### Phase 1: Read Before Planning
 1. Read ALL documents in `@doc`, `@app`, and `@config` directories
-2. Review the plan in `@todo.txt`
-3. DO NOT proceed to planning or building until step 1 and 2 are complete
+2. Review the plan in PLAN (below) and check what has been implemented from that in the code base (test if necessary) and then move to either fixing gaps or moving to the next step
 
 ### Phase 2: Execution
-1. Follow the plan in `@todo.txt` sequentially
-2. If human asks for something that contradicts these instructions, STOP and ask for clarification
+2. If human asks for something that contradicts any of the the previous ways of working or instructions that do not follow good AI development practice, or instructions that will probably derail the main plan then STOP and ask for clarification and confirmation before proceeding. You are doing the user a favour by calling out bad ideas.
 3. Cross-check your own planning against these instructions
-4. If you find contradictions, research best practices and propose solutions to the human
 5. Classes or Functions? As a general rule if you are describing a data object use a class, if you are not use a function. 
 6. Keep the function definitions to maximum ten lines of code.
-7. Keep function and class names to be descriptive and no more than 15 characters.
-8. Write ray data outputs to Shared Storage 
-┌─────────────┐      Network
-│  GPU Node 1 │──────────────┐
-└─────────────┘              │
-                             ├──► Shared Storage (GoogleDrive for current tests)
-┌─────────────┐              │
-│  GPU Node 2 │──────────────┘
-└─────────────┘
+7. Keep function names / class names no more than 15 characters. Do not comment in code, use clear names instead.
+
+
 ---
 
 ## Code Quality Standards
@@ -119,7 +111,7 @@ After EVERY task, verify you are using:
 
 If you missed any of these, STOP and fix it immediately.
 
-### Forbidden: Rich Text Emojis in Code
+### Forbidden: DO NOT EVER USE Rich Text Emojis in Code
 **DELETE** any line containing these emojis in print statements or logs:
 - ❌ 🚀 ✅ 📊 ⚠️ 💡 🔧 🎯 or ANY other emoji
 
@@ -148,11 +140,11 @@ logger.error("Failed to initialize Ray")
 - Show your work: explain reasoning before implementing
 
 ### DO NOT:
-- Write summary documents unless explicitly asked
+- Write .md summaries or documentation EVER.
 - Use emojis in code or logs
 - Make changes without verifying against project requirements
 - Proceed without reading all context documents first
-- Every 3 tasks - perform an audit and springclean for redundant files or code snippets.
+- Every 3 tasks - perform an audit and springclean for redundant files or code snippets - use the symbiote if needed.
 ---
 
 ## Checklist Before Any Code Changes
@@ -166,109 +158,7 @@ logger.error("Failed to initialize Ray")
 □ Does this change align with the 24-hour SLA requirement?
 □ Have I cross-checked against @todo.txt?
 ```
-
----
-
-## Key Technical Constraints
-
-### Package Versions (VERIFIED WORKING)
-```
-ray[data]==2.49.1
-vllm==0.10.0
-torch>=2.0.0
-transformers>=4.30.0
-datasets>=2.10.0
-pyyaml>=6.0
-pytest>=7.0.0
-pytest-mock>=3.10.0
-pytest-asyncio>=0.18.0
-httpx>=0.20.0
-requests>=2.28.0
-```
-
-### Docker Image Package Versions
-The `michaelsigamani/proj-grounded-telescopes:0.1.0` Docker image contains:
-- Ray 2.49.1
-- vLLM 0.10.0  
-- Torch 2.0.0+
-- Transformers 4.30.0+
-- All other required dependencies for production batch inference
-
-Files like `@app/ray_data_batch_inference.py` should utilize these correct library versions as provided in the container environment.
-
-### Architecture Requirements
-- 2-node setup (head + worker)
-- Small model testing: Qwen2.5-0.5B
-- Dataset: ShareGPT
-- Observability: Real-time metrics, SLA tracking
-- Configurability: All parameters via YAML
-
----
-
-## When to Ask Questions
-
-**STOP and ASK if**:
-1. Human requests something contradicting these instructions
-2. You find inconsistencies between @todo.txt and these rules
-3. You're about to use an approach that doesn't use `ray.data.llm` API
-4. SSH credentials are needed to access the VM
-5. You need clarification on 24-hour SLA implementation details
-
-
-
----
-
-## Testing Agent
-
-### Overview
-
-The Testing Agent (`testing_agent.py`) is a specialized subagent responsible for comprehensive repository testing and automated issue resolution for the Ray Data + vLLM batch inference system.
-
-## Activation
-
-The Testing Agent automatically activates when:
-- Repository test execution is requested
-- Test suite failures are detected
-- CI/CD pipeline testing is needed
-- Manual validation is required before deployment
-
-## Usage
-
-### Command Line Interface
-```bash
-# Run full test suite
-python3 testing_agent.py --verbose
-
-# Apply fixes only
-python3 testing_agent.py --fix-only
-
-# Custom report location
-python3 testing_agent.py --report-file custom_report.json
-
-# Custom repository root
-python3 testing_agent.py --repo-root /path/to/repo
-```
-
-### Integration with Opencode
-
-**As Subagent:**
-```python
-# Activate testing agent via task system
-task(
-    description="Run repository test suite",
-    prompt="Execute comprehensive testing matrix for Ray Data + vLLM repository",
-    subagent_type="testing"
-)
-```
-
-**Manual Execution:**
-```bash
-# Direct execution
-./testing_agent.py --verbose
-
-# Via simplified runner
-./run_tests.py
-```
+r
 
 ---
 
@@ -354,3 +244,15 @@ The Testing Symbiote generates comprehensive reports including:
 **The Testing Agent ensures repository reliability, catches issues early, and maintains high code quality standards for production deployment.**
 
 **The Testing Symbiote provides specialized matrix testing and automated repair capabilities for the sigamani/doubleword-technical repository, ensuring robust performance across all configuration permutations.**
+
+### PLAN
+
+1. Authentication: issue a bearer token and inject it into the user’s curl request payload.
+
+3. Data serialization: use SHA-based identifiers so all data is immutable, and store artifacts in a versioned store such as S3.
+
+4. Logging: for the proof-of-concept I will write logs and metrics to a local output directory, but I will note production options such as Loki and Promtail.
+
+5. Dashboarding: most teams use Grafana; for the proof-of-concept I will expose metrics as a local JSON file for simplicity.
+
+6. Main Dependencies for PoC: Ray 2.4.9, vLLM 0.10.0, PyTorch, Hugging Face Hub, Transformers, Redis, Prometheus, FastAPI, Uvicorn, and Pydantic.
