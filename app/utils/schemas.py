@@ -24,7 +24,7 @@ class JobStore():
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def create(self, data: Dict[str, Any]) -> str:
-        job_id = str(uuid.uuid4()+time.time())[:12]  
+        job_id = str(uuid.uuid4())[:12]  
         job_data = {
             "id": job_id,
             "status": JobStatus.QUEUED,

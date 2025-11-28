@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, List
 
+
 @dataclass
 class QueueMessage:
     message_id: str
@@ -14,6 +15,7 @@ class QueueMessage:
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = time.time()
+
 
 class SimpleQueue:
     def __init__(self):
@@ -41,6 +43,7 @@ class SimpleQueue:
 
     def get_depth(self) -> int:
         return len(self.queue) + len(self.priority_queue)
+
 
 # Example usage
 if __name__ == "__main__":

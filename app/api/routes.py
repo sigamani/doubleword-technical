@@ -113,19 +113,18 @@ async def generate_batch(request: BatchRequest):
 @app.post("/v1/batches", response_model=OpenAIBatchResponse)
 async def create_openai_batch(request: OpenAIBatchRequest):
     prompts = [item.get("prompt", "") for item in request.input]
-    batch_id = str(uuid.uuid4())
     created_at = float(time.time())
+
+    job_data = {"id": "placeholder", "model": request.model, "status": "queued", "created_at": created_at, "num_prompts": len(prompts)}
+    batch_id = job_store.create(job_data)
 
     sla_manager.create_job(batch_id, len(prompts))
 
-    job_data = {"id": batch_id, "model": request.model, "status": "queued", "created_at": created_at, "num_prompts": len(prompts)}
-    job_store.create( batch_id, job_data)
-
-    priority = calculate_priority(batch_id, created_at, len(prompts))
-    logger.info(f"Enqueuing batch {batch_id} with priority {priority} and{len(prompts)} prompts")
+    priority = calculate_priority(created_at, len(prompts))
+    logger.info(f"Enqueuing batch {batch_id} with priority {priority} and {len(prompts)} prompts")
     return OpenAIBatchResponse(
         id=batch_id,
-        created_at=created_at,
+        created_at=int(created_at),
         status="queued"
     )
 

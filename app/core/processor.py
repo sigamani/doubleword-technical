@@ -1,12 +1,26 @@
 import logging
-import ray
-from ray.data import Dataset
 from typing import Any, Dict, List
 from dataclasses import dataclass
 
+# Try to import Ray, use mock if not available
+try:
+    import ray
+    from ray.data import Dataset
+    RAY_AVAILABLE = True
+except ImportError:
+    import sys
+    import os
+    # Add project root to path
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, project_root)
+    import mock_ray
+    ray = mock_ray.ray
+    Dataset = mock_ray.MockDataset
+    RAY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
-def create_ray_dataset(prompts: List[str]) -> Dataset:
+def create_ray_dataset(prompts: List[str]):
     """Create Ray dataset from list of prompts."""
     return ray.data.from_items([{"prompt": prompt} for prompt in prompts])
 
@@ -39,25 +53,28 @@ class InferencePipeline:
     def _build_vllm_processor(self):
         """Build vLLM processor for Ray Data"""
         try:
-            from ray.data.llm import build_llm_processor
-            from vllm import SamplingParams
-            
-            sampling_params = SamplingParams(
-                temperature=0.7,
-                max_tokens=256,
-                stop_token_ids=[]
-            )
-            
-            processor = build_llm_processor(
-                model=self.model_name,
-                sampling_params=sampling_params,
-                batch_size=32,
-                concurrency=2,
-                gpu_memory_utilization=0.90,
-                tensor_parallel_size=1
-            )
-            
-            return processor
+            if RAY_AVAILABLE:
+                from ray.data.llm import build_llm_processor
+                from vllm import SamplingParams
+                
+                sampling_params = SamplingParams(
+                    temperature=0.7,
+                    max_tokens=256,
+                    stop_token_ids=[]
+                )
+                
+                processor = build_llm_processor(
+                    model=self.model_name,
+                    sampling_params=sampling_params,
+                    batch_size=32,
+                    concurrency=2,
+                    gpu_memory_utilization=0.90,
+                    tensor_parallel_size=1
+                )
+                
+                return processor
+            else:
+                return None
             
         except ImportError as e:
             logger.warning(f"vLLM/Ray Data LLM not available: {e}")
