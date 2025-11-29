@@ -260,7 +260,10 @@ gpu_pool = {
 
 ---
 
-# 5. How This PoC Aligns With State-of-the-Art
+<details>
+<summary><strong> 1. 5. How This PoC Aligns With Current Trends </strong></summary>
+
+<br> 
 
 This PoC mirrors the architecture patterns observed in modern repositories:
 
@@ -276,6 +279,8 @@ This PoC mirrors the architecture patterns observed in modern repositories:
 | Minimal PoC infra (no Redis/Kafka)      | Yes                                    |
 | Dockerized dev environment              | Yes                                    |
 | Replaceable components for staging/prod | Yes                                    |
+
+</details>
 
 ---
 
