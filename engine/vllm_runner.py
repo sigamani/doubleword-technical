@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict, List
 from dataclasses import dataclass
+import signal
+from vllm import SamplingParams
 
 try:
     import ray
@@ -64,6 +66,21 @@ class InferencePipeline:
         self.model_name = model_name
         self.vllm_engine = None
     
+    def _execute_fallback(self, prompts: List[str]) -> List[Dict]:
+        """Fallback execution without Ray"""
+        results = []
+        for prompt in prompts:
+            response = f"Fallback response for: {prompt[:50]}..."
+            tokens = len(response.split())
+            
+            results.append({
+                "response": response,
+                "prompt": prompt,
+                "tokens": tokens,
+                "processing_time": 0.001
+            })
+        return results
+    
     def _build_vllm_processor(self):
         """Build vLLM processor for Ray Data"""
         # Import vLLM at module level for CPU compatibility
@@ -108,12 +125,22 @@ class InferencePipeline:
         results = []
         for prompt in prompts:
             try:
-                # Generate using vLLM
+                # Generate using vLLM with timeout
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("vLLM generation timed out")
+                
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(10)  # 10 second timeout per prompt
+                
                 outputs = self.vllm_engine.generate([prompt], SamplingParams(
                     temperature=0.7,
                     max_tokens=256,
                     stop_token_ids=[]
                 ))
+                signal.alarm(0)  # Cancel timeout
+                
                 response = outputs[0].outputs[0].text if outputs else ""
                 tokens = len(response.split()) if response else 0
                 
@@ -122,6 +149,14 @@ class InferencePipeline:
                     "prompt": prompt,
                     "tokens": tokens,
                     "processing_time": 0.001
+                })
+            except TimeoutError:
+                logger.warning(f"vLLM generation timed out for prompt: {prompt}")
+                results.append({
+                    "response": f"vLLM timeout for: {prompt[:30]}...",
+                    "prompt": prompt,
+                    "tokens": 0,
+                    "processing_time": 10.0  # Mark as timeout
                 })
             except Exception as e:
                 logger.warning(f"vLLM generation failed for prompt '{prompt}': {e}")

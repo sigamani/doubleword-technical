@@ -1,0 +1,25 @@
+from typing import List, Dict, Any
+from pydantic import BaseModel
+
+class BatchRequest(BaseModel):
+    prompts: List[str]
+    max_tokens: int = 256
+    temperature: float = 0.7
+
+class BatchResponse(BaseModel):
+    results: List[Dict[str, Any]]
+    total_time: float
+    total_prompts: int
+    throughput: float
+
+class OpenAIBatchRequest(BaseModel):
+    model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    input: List[Dict[str, str]]
+    max_tokens: int = 256
+    temperature: float = 0.7
+
+class OpenAIBatchResponse(BaseModel):
+    id: str
+    object: str = "batch"
+    created_at: int
+    status: str

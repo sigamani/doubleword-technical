@@ -5,7 +5,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.core.processor import create_ray_dataset, preprocess_batch, postprocess_batch, InferencePipeline
+from engine.vllm_runner import create_ray_dataset, preprocess_batch, postprocess_batch, InferencePipeline
 
 def test_ray_dataset_creation():
     """Test basic Ray dataset creation"""

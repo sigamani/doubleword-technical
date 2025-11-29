@@ -10,21 +10,21 @@ import os
 from typing import List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from api.models import BatchRequest, BatchResponse, OpenAIBatchRequest, OpenAIBatchResponse
 
 logger = logging.getLogger(__name__)
 
-from app.core.processor import InferencePipeline
+from engine.vllm_runner import InferencePipeline
 pipeline = InferencePipeline()
 
 from concurrent.futures import ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=4)
 
-from app.core.queue import SimpleQueue
+from api.queue import SimpleQueue
 job_queue = SimpleQueue()
 
 
-from app.core.worker import BatchWorker
+from api.worker import BatchWorker
 try:
     batch_worker = BatchWorker(job_queue)
     batch_worker.start()
@@ -41,32 +41,6 @@ app = FastAPI(
     version="1.0.0",
     description="Minimal batch inference PoC"
 )
-
-# ---------------------------
-# Models
-# ---------------------------
-class BatchRequest(BaseModel):
-    prompts: List[str]
-    max_tokens: int = 256
-    temperature: float = 0.7
-
-class BatchResponse(BaseModel):
-    results: List[Dict[str, Any]]
-    total_time: float
-    total_prompts: int
-    throughput: float
-
-class OpenAIBatchRequest(BaseModel):
-    model: str = "Qwen/Qwen2.5-0.5B-Instruct"
-    input: List[Dict[str, str]]
-    max_tokens: int = 256
-    temperature: float = 0.7
-
-class OpenAIBatchResponse(BaseModel):
-    id: str
-    object: str = "batch"
-    created_at: int
-    status: str
 
 
 BATCH_DIR = "/tmp"
