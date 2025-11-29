@@ -1,8 +1,8 @@
 FROM vllm/vllm-openai:latest
-RUN pip install -r requirements.dev
+RUN pip install -r ../requirements.dev
 WORKDIR /app
-COPY api/ ./api/
-COPY pipeline/ ./pipeline/
+COPY ../api/ ./api/
+COPY ../pipeline/ ./pipeline/
 COPY pyproject.toml ./
 RUN useradd -m -u appuser
 RUN chown -R appuser:appuser /app
