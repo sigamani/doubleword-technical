@@ -2,7 +2,7 @@
 
 ## Overview
 
-This Proof-of-Concept (PoC) attempts to implement an **offline batch inference system** designed to validate core architectural patterns for request marshalling, job lifecycle management, and compute resource allocation. The system uses minimal dependencies while remaining aligned with industry best practices, allowing the API semantics, batching workflow, and scheduling logic to be validated without requiring actual GPU infrastructure or distributed systems. I use an **OpenAI-style** interface by broadly following the design patterns outlined [here](https://platform.openai.com/docs/guides/batch). 
+This Proof-of-Concept (PoC) attempts to implement an **offline batch inference system** designed to validate core architectural patterns for request marshalling, job lifecycle management, and compute resource allocation. The codebase purposely uses minimal dependencies so the spotlight can be on development and testing around some key areas.  
 
 Main component choices:
 
