@@ -4,7 +4,7 @@ import uvicorn
 
 import sys
 import os
-# Add project root to path for both standalone and module execution
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)

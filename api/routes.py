@@ -136,7 +136,7 @@ async def generate_batch(request: BatchRequest):
         throughput=len(request.prompts)/total_time if total_time > 0 else 0
     )
 
-app.post("/v1/batches", response_model=OpenAIBatchResponse)
+@app.post("/v1/batches", response_model=OpenAIBatchResponse)
 async def create_openai_batch(request: OpenAIBatchRequest):
     try:
         prompts = [item.get("prompt", "") for item in request.input]
