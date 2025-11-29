@@ -19,12 +19,15 @@ Production-grade substitutes are outlined for each component.
 
 ---
 <details>
-<summary><strong> # 1. Research Summary: Current Trends in Offline/Batch LLM Inference
- 
+<summary><strong>1. Research Summary: Current Trends in Offline/Batch LLM Inference</strong></summary>
+
+<br>
+
+# 1. Research Summary: Current Trends in Offline/Batch LLM Inference
+
 <img width="2400" height="1600" alt="Trends_in_engines,_servers,_frameworks,_and_patterns_for_offline_and_batch_LLM_inference_in_recent_public_GitHub_projects" src="https://github.com/user-attachments/assets/6649c5b4-eacb-405a-b577-66a9fc2fd03f" />
 
 Derived from analysis of public GitHub repositories and industry examples [See Key References](#9-key-references)
-
 
 ## 1.1 Engines
 
@@ -43,7 +46,6 @@ Typical choices:
 * **HuggingFace TGI** for text-generation-focused deployments
 * **vLLM's Python server** for simpler control-plane integration
 * **Custom FastAPI/gRPC control planes** when queueing, task lifecycle, or custom semantics are needed
- 
 
 ## 1.3 Orchestration Patterns
 
@@ -56,10 +58,10 @@ Two patterns dominate:
 
 * Use of **map-style batch transforms** (Ray, Spark, TGI batch API, TensorRT-LLM batch scheduler)
 * OpenAI-style patterns around:
-  * upload file
-  * create batch job
-  * poll job status
-  * retrieve results
+  * upload file  
+  * create batch job  
+  * poll job status  
+  * retrieve results  
 * Dynamic batching or continuous batching where possible
 * Separation between **control plane** (HTTP API) and **execution layer** (Ray/vLLM/Triton)
 * PoCs avoid Redis, Celery, Kafka, etc.; they use local queues or in-memory runners
