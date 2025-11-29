@@ -1,26 +1,33 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+                
 import logging
 import time
 import uuid
 import json
 import os
-from app.core.sla import SLAManager
-from app.utils.schemas import JobStore
-from app.core.priority import calculate_priority
-
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-
-from app.core.processor import InferencePipeline
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+from app.core.processor import InferencePipeline
 pipeline = InferencePipeline()
+
+from concurrent.futures import ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=4)
 
-sla_manager = SLAManager()
-job_store = JobStore()
+from app.core.queue import SimpleQueue
+job_queue = SimpleQueue()
+
+from app.core.worker import BatchWorker
+# Initialize and start worker
+batch_worker = BatchWorker(job_queue)
+batch_worker.start()
+
 
 app = FastAPI(
     title="Ray Data vLLM Batch Inference",
@@ -54,10 +61,15 @@ class OpenAIBatchResponse(BaseModel):
     created_at: int
     status: str
 
-# ---------------------------
-# Helpers
-# ---------------------------
+
 BATCH_DIR = "/tmp"
+
+def calculate_priority(created_at: float, num_prompts: int, deadline_hours: float = 24.0) -> int:
+    """
+    Calculate the priority of a task based on its creation time, number of prompts, and deadline.
+    This is a placeholder implementation that always returns a priority of 1.
+    """
+    return 1
 
 async def execute_batch_async(prompts: List[str]) -> List[Dict[str, Any]]:
     loop = None
@@ -114,24 +126,58 @@ async def generate_batch(request: BatchRequest):
 async def create_openai_batch(request: OpenAIBatchRequest):
     prompts = [item.get("prompt", "") for item in request.input]
     created_at = float(time.time())
-
-    job_data = {"id": "placeholder", "model": request.model, "status": "queued", "created_at": created_at, "num_prompts": len(prompts)}
-    batch_id = job_store.create(job_data)
-
-    sla_manager.create_job(batch_id, len(prompts))
-
+    batch_id = str(uuid.uuid4())[:12]  # Short ID for filename
+    
+    # Create job metadata file
+    job_data = {
+        "id": batch_id,
+        "model": request.model,
+        "status": "queued",
+        "created_at": created_at,
+        "num_prompts": len(prompts),
+        "input_file": f"{batch_id}_input.jsonl",
+        "output_file": f"{batch_id}_output.jsonl",
+        "error_file": f"{batch_id}_errors.jsonl"
+    }
+    
+    # Save job metadata
+    job_path = os.path.join(BATCH_DIR, f"job_{batch_id}.json")
+    with open(job_path, "w") as f:
+        json.dump(job_data, f, indent=2)
+    
+    # Save input prompts as JSONL
+    input_path = os.path.join(BATCH_DIR, f"{batch_id}_input.jsonl")
+    with open(input_path, "w") as f:
+        for prompt in prompts:
+            json.dump({"prompt": prompt}, f)
+            f.write("\n")
+    
     priority = calculate_priority(created_at, len(prompts))
     logger.info(f"Enqueuing batch {batch_id} with priority {priority} and {len(prompts)} prompts")
+    
+    # Enqueue job for processing
+    job_queue.enqueue({
+        "job_id": batch_id,
+        "input_file": input_path,
+        "output_file": os.path.join(BATCH_DIR, f"{batch_id}_output.jsonl"),
+        "model": request.model,
+        "max_tokens": request.max_tokens,
+        "temperature": request.temperature
+    })
+    
     return OpenAIBatchResponse(
         id=batch_id,
         created_at=int(created_at),
         status="queued"
     )
 
+
 @app.get("/v1/batches/{batch_id}")
 async def get_openai_batch(batch_id: str):
+    job_path = os.path.join(BATCH_DIR, f"job_{batch_id}.json")
     try:
-        job=job_store.get(batch_id)
+        with open(job_path, "r") as f:
+            job = json.load(f)
         return {
             "id": job["id"],
             "model": job.get("model", "unknown"),
@@ -140,7 +186,7 @@ async def get_openai_batch(batch_id: str):
             "status": job.get("status", "unknown"),
             "total_prompts": job.get("num_prompts", 0)
         }
-    except KeyError:
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Batch not found")
 
 
@@ -148,3 +194,77 @@ async def get_openai_batch(batch_id: str):
 async def get_openai_batch_results(batch_id: str):
     batch = load_batch(batch_id)
     return {"object": "list", "data": batch["results"]}
+
+
+if __name__ == "__main__":
+    import asyncio
+    
+    async def test_batch_workflow():
+        """Test the complete batch workflow"""
+        print("🧪 Testing batch workflow...")
+        
+        # Test 1: Create a batch job
+        print("\n1. Creating batch job...")
+        test_request = {
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "input": [
+                {"prompt": "What is 2+2?"},
+                {"prompt": "Explain AI in one sentence"},
+                {"prompt": "Hello world test"}
+            ],
+            "max_tokens": 50,
+            "temperature": 0.7
+        }
+        
+        try:
+            # Simulate POST request
+            from fastapi.testclient import TestClient
+            client = TestClient(app)
+            response = client.post("/v1/batches", json=test_request)
+            
+            if response.status_code == 200:
+                batch_data = response.json()
+                batch_id = batch_data["id"]
+                print(f"✅ Batch created with ID: {batch_id}")
+                
+                # Test 2: Check job status
+                print(f"\n2. Checking job status for {batch_id}...")
+                await asyncio.sleep(0.5)  # Give worker time to process
+                
+                status_response = client.get(f"/v1/batches/{batch_id}")
+                if status_response.status_code == 200:
+                    status_data = status_response.json()
+                    print(f"✅ Job status: {status_data['status']}")
+                else:
+                    print(f"❌ Status check failed: {status_response.status_code}")
+                
+                # Test 3: Check if files were created
+                print(f"\n3. Checking files...")
+                import os
+                job_file = f"/tmp/job_{batch_id}.json"
+                input_file = f"/tmp/{batch_id}_input.jsonl"
+                
+                if os.path.exists(job_file):
+                    print("✅ Job metadata file created")
+                else:
+                    print("❌ Job metadata file missing")
+                    
+                if os.path.exists(input_file):
+                    print("✅ Input file created")
+                else:
+                    print("❌ Input file missing")
+                
+                # Test 4: Check queue depth
+                print(f"\n4. Queue depth: {job_queue.get_depth()}")
+                
+            else:
+                print(f"❌ Batch creation failed: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            print(f"❌ Test failed: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # Run the test
+    asyncio.run(test_batch_workflow())
+    print("\n🏁 Tests completed!")
