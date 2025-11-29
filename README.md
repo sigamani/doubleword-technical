@@ -20,7 +20,7 @@ Substitutes are outlined for each component if one would want to bring this to p
 
 ---
 <details>
-<summary><strong> 1. Research </strong></summary>
+<summary><strong> 1. Implementation Research </strong></summary>
 
 <br>
 
@@ -75,7 +75,7 @@ This PoC aligns with these trends.
 ---
 
 <details>
-<summary><strong> 2. System Architecture </strong></summary>
+<summary><strong> 2. Architecture Diagram </strong></summary>
 
 <br>
 
@@ -143,7 +143,7 @@ curl http://localhost:8000/v1/batches/{batch_id}
 ---
 
 <details>
-<summary><strong> 3. Component Choices </strong></summary>
+<summary><strong> 3. Design Choices </strong></summary>
 
 <br>
 
@@ -204,7 +204,7 @@ gpu_pool = {
 ---
 
 <details>
-<summary><strong> 4. Scope Definition </strong></summary>
+<summary><strong> 4. Product Requirement Doc </strong></summary>
 
 <br>
  
@@ -287,7 +287,7 @@ This PoC mirrors the architecture patterns observed in modern repositories:
 ---
 
 <details>
-<summary><strong> 6. Path to Production </strong></summary>
+<summary><strong> 6. Production </strong></summary>
 
 <br>
 
@@ -310,7 +310,7 @@ If taken beyond PoC:
 ---
 
 <details>
-<summary><strong> 7. Repository Structure </strong></summary>
+<summary><strong> 7. Repo. Structure </strong></summary>
 
 <br>
 
