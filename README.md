@@ -204,7 +204,7 @@ gpu_pool = {
 ---
 
 <details>
-<summary><strong> 4. Product Requirement Doc </strong></summary>
+<summary><strong> 4. Product Requirement Doc. </strong></summary>
 
 <br>
  
