@@ -7,7 +7,7 @@ This Proof-of-Concept (PoC) attempts to implement an **offline batch inference s
 Main component choices:
 
 * **Ray Data (2.49.1)** for batch ingestion and parallel map-style execution
-* **vLLM (0.10.0) ** as the LLM execution engine (STAGING)
+* **vLLM (0.10.0)** as the LLM execution engine (STAGING)
 * **FastAPI** as the API gateway
 
 Furthermore, I use:
