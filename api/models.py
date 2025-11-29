@@ -7,32 +7,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 class priorityLevels(Enum):
-    """Priority levels for batch jobs."""
     LOW = 1
     HIGH = 10
 
 class BatchRequest(BaseModel):
-    """Request model for simple batch generation."""
     prompts: List[str]
     max_tokens: int = 256
     temperature: float = 0.7
 
 class BatchResponse(BaseModel):
-    """Response model for simple batch generation."""
     results: List[Dict[str, Any]]
     total_time: float
     total_prompts: int
     throughput: float
 
 class OpenAIBatchRequest(BaseModel):
-    """OpenAI-style batch request model."""
     model: str = "Qwen/Qwen2.5-0.5B-Instruct"
     input: List[Dict[str, str]]
     max_tokens: int = 256
     temperature: float = 0.7
 
 class OpenAIBatchResponse(BaseModel):
-    """OpenAI-style batch response model."""
     id: str
     object: str = "batch"
     created_at: int
@@ -40,15 +35,12 @@ class OpenAIBatchResponse(BaseModel):
 
 
 if __name__ == "__main__":
-    """Test the models module"""
     logger.info("Testing API models...")
     
-    # Test priority levels
     logger.info(f"Priority levels: {list(priorityLevels)}")
     logger.info(f"LOW = {priorityLevels.LOW.value}")
     logger.info(f"HIGH = {priorityLevels.HIGH.value}")
     
-    # Test BatchRequest
     batch_req = BatchRequest(
         prompts=["Hello world", "What is AI?"],
         max_tokens=128,
@@ -56,7 +48,6 @@ if __name__ == "__main__":
     )
     logger.info(f"BatchRequest created: {batch_req.prompts}")
     
-    # Test BatchResponse
     batch_resp = BatchResponse(
         results=[{"response": "test"}],
         total_time=1.5,
@@ -65,7 +56,6 @@ if __name__ == "__main__":
     )
     logger.info(f"BatchResponse created: {batch_resp.throughput:.2f} prompts/sec")
     
-    # Test OpenAI models
     openai_req = OpenAIBatchRequest(
         model="test-model",
         input=[{"prompt": "test"}],
