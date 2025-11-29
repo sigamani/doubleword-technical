@@ -72,7 +72,10 @@ This PoC aligns with these trends.
 
 ---
 
-# 2. Architecture of This PoC
+<details>
+<summary><strong> 2. Architecture of This PoC </strong></summary>
+
+<br>
 
 ```
              ┌─────────────────────────────┐
@@ -133,10 +136,14 @@ curl -X POST http://localhost:8000/v1/batches \
 # Check job status
 curl http://localhost:8000/v1/batches/{batch_id}
 ```
+</details>
 
 ---
 
-# 3. Component Choices and Rationale
+<details>
+<summary><strong> 3. Component Choices and Rationale </strong></summary>
+
+<br>
 
 ## 3.1 Ray Data
 
@@ -190,10 +197,15 @@ gpu_pool = {
 
 **Production substitute:** Kubernetes, KubeRay, Ray Jobs API, or ECS.
 
+</details>
+
 ---
 
-# 4. Scope Definition
+<details>
+<summary><strong> 4. Scope Definition </strong></summary>
 
+<br>
+ 
 ## 4.1 In Scope (for PoC)
 
 **Core API & Lifecycle:**
@@ -244,6 +256,8 @@ gpu_pool = {
 * Real object storage integration (S3/GCS)
 * Priority queues or tiered service plans
 
+</details>
+
 ---
 
 # 5. How This PoC Aligns With State-of-the-Art
@@ -265,7 +279,10 @@ This PoC mirrors the architecture patterns observed in modern repositories:
 
 ---
 
-# 6. Production Path (Recommended)
+<details>
+<summary><strong> 6. Proposed Production Path </strong></summary>
+
+<br>
 
 If taken beyond PoC:
 
@@ -281,9 +298,14 @@ If taken beyond PoC:
 | Local storage              | S3/GCS object storage                   |
 | In-memory job metadata     | Database (PostgreSQL/DynamoDB)          |
 
+</details>
+
 ---
 
-# 7. Repository Structure (Suggested)
+<details>
+<summary><strong> 7. Repository Structure </strong></summary>
+
+<br>
 
 ```
 repo/
@@ -318,9 +340,13 @@ repo/
 └── README.md
 ```
 
+</details>
 ---
 
-# 8. Key Deliverables
+<details>
+<summary><strong> 8. Key Deliverables </strong></summary>
+
+<br>
 
 This PoC validates:
 
@@ -339,15 +365,18 @@ The PoC does **not** validate:
 * Enterprise security requirements
 * Multi-tenant isolation
 
+</details>
+
 ---
 
-# 9. Key References
+<details>
+<summary><strong> 9. Key References </strong></summary>
+
+<br>
 
 * GitHub repositories surveyed for offline/batch LLM inference (vLLM, TGI, TensorRT-LLM, custom pipelines)
 * Summary research output from Perplexity PDF
 * OpenAI Batch API documentation patterns
-
----
 
 ## References
 
@@ -383,3 +412,6 @@ The PoC does **not** validate:
 - EthicalML. “awesome-production-machine-learning.” https://ethicalml.github.io/awesome-production-machine-learning/
 - danvk. “gpt-batch-manager: Tools for splitting jobs across batches.” https://github.com/danvk/gpt-batch-manager
 - alexrudall. “ruby-openai: OpenAI API + Ruby.” https://github.com/alexrudall/ruby-openai
+
+</details>
+
