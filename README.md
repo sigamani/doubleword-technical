@@ -1,16 +1,16 @@
-# Offline Batch Inference PoC (OpenAI-Style)
+# Offline Batch Inference (OpenAI-Style)
 
 ## Overview
 
-This Proof-of-Concept demonstrates an **OpenAI-style offline batch inference system** designed to validate core architectural patterns for request marshalling, job lifecycle management, and compute resource allocation. The system uses minimal dependencies while remaining aligned with industry best practices, allowing the API semantics, batching workflow, and scheduling logic to be validated without requiring actual GPU infrastructure or distributed systems.
+This Proof-of-Concept (PoC) attempts to implement an **offline batch inference system** designed to validate core architectural patterns for request marshalling, job lifecycle management, and compute resource allocation. The system uses minimal dependencies while remaining aligned with industry best practices, allowing the API semantics, batching workflow, and scheduling logic to be validated without requiring actual GPU infrastructure or distributed systems. I use an **OpenAI-style** interface by broadly following the design patterns outlined [here](https://platform.openai.com/docs/guides/batch). 
 
-The PoC uses:
+Component choices:
 
-* **Ray Data** for batch ingestion and parallel map-style execution
-* **vLLM** as the LLM execution engine
-* **FastAPI** for the control plane
+* **Ray Data (2.49.1)** for batch ingestion and parallel map-style execution
+* **vLLM (0.10.0) ** as the LLM execution engine (STAGING)
+* **FastAPI** as the API control plane
 * **`collections.deque`** as an in-memory job queue
-* **Docker + Docker Compose** for isolated, reproducible local deployment
+* **Docker + Docker Compose** to handle development in STAGING env (test on Ubuntu VMs with NVidia GPUs and CUDA drivers)
 * **Mocked resource pools** simulating spot and dedicated GPU allocation
 
 Substitutes are outlined for each component if one would want to bring this to production.
