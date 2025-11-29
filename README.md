@@ -42,8 +42,7 @@ Typical choices:
 * **HuggingFace TGI** for text-generation-focused deployments
 * **vLLM's Python server** for simpler control-plane integration
 * **Custom FastAPI/gRPC control planes** when queueing, task lifecycle, or custom semantics are needed
-* 
-![Uploading Trends_in_engines,_servers,_frameworks,_and_patterns_for_offline_and_batch_LLM_inference_in_recent_public_GitHub_projects.png…]()
+ 
 
 ## 1.3 Orchestration Patterns
 
