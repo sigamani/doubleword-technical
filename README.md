@@ -185,68 +185,7 @@ Then repeat the steps from the CURL request above. Also swagger docs are availab
 ---
 
 <details>
-<summary><strong> 3. Design Choices </strong></summary>
-
-<br>
-
-## 3.1 Ray Data
-
-* Native map-style **batch transformations** match the OpenAI offline inference model
-* Built-in backpressure, parallelism, and scaling semantics
-* Lightweight setup for a PoC without needing a Ray cluster
-
-## 3.2 vLLM
-
-* High throughput per GPU/CPU
-* Simple Python API; minimal server overhead
-* Aligns with current industry trends in PoCs and production prototypes
-
-## 3.3 FastAPI
-
-* Thin control plane for:
-  * job submission with SLA metadata
-  * queue inspection
-  * job results retrieval
-* Easiest to test and iterate on
-* Used in many open-source LLM servers for HTTP orchestration
-
-## 3.4 `collections.deque` (Queue)
-
-* Zero external dependencies
-* Allows rapid prototyping and unit testing of queue semantics
-* Mirrors queue/worker pattern used in production without requiring Redis/Celery
-
-**Production substitute:** Redis Streams, Redis Queue, or Celery with a broker.
-
-## 3.5 Mocked GPU Pool Scheduler
-
-* Simulates resource allocation decisions without actual GPU hardware
-* Tests request marshalling logic for spot vs dedicated instance assignment
-* Includes capacity tracking and fallback behavior
-* Example state representation:
-
-```python
-gpu_pool = {
-    "spot": {"capacity": 2, "available": 1},
-    "dedicated": {"capacity": 1, "available": 1},
-}
-```
-
-**Production substitute:** Real GPU scheduling with Ray autoscaler, Kubernetes, or cloud provider APIs.
-
-## 3.6 Docker + Docker Compose
-
-* Provides reproducibility for independent LLM engine, Ray runtime, and API
-* Keeps the PoC self-contained and portable
-
-**Production substitute:** Kubernetes, KubeRay, Ray Jobs API, or ECS.
-
-</details>
-
----
-
-<details>
-<summary><strong> 4. Product Requirement Doc. </strong></summary>
+ <summary><strong> 3. Feature Scope </strong></summary>
 
 <br>
  
@@ -307,7 +246,7 @@ gpu_pool = {
 ---
 
 <details>
-<summary><strong> 5. Alignment with Best Practice </strong></summary>
+<summary><strong> 4. Best Practice </strong></summary>
 
 <br> 
 
@@ -331,7 +270,7 @@ This PoC mirrors the architecture patterns observed in modern repositories:
 ---
 
 <details>
-<summary><strong> 6. Production </strong></summary>
+<summary><strong> 5. To Production </strong></summary>
 
 <br>
 
@@ -354,7 +293,7 @@ If taken beyond PoC:
 ---
 
 <details>
-<summary><strong> 7. Deliverables </strong></summary>
+<summary><strong> 6. PoC Deliverables </strong></summary>
 
 <br>
 
@@ -380,7 +319,7 @@ The PoC does **not** validate:
 ---
 
 <details>
-<summary><strong> 8. References </strong></summary>
+<summary><strong> 7. References </strong></summary>
 
 <br>
 
