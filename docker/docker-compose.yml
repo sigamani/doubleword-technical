@@ -19,8 +19,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-        - ../api:/app/api
-        - ../pipeline:/app/pipeline
+        - ../api:/app/api:rw
+        - ../pipeline:/app/pipeline:rw
         - batch_storage:/tmp
   vllm:
     build:
@@ -35,8 +35,8 @@ services:
     ports:
       - "8001:8001"
     volumes:
-        - ../api:/app/api
-        - ../pipeline:/app/pipeline
+        - ../api:/app/api:rw
+        - ../pipeline:/app/pipeline:rw
         - batch_storage:/tmp
     deploy:
       resources:
