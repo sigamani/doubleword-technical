@@ -96,7 +96,6 @@ class BatchWorker:
             
             logger.info("Starting batch inference...")
             
-            # Use real vLLM processing for STAGE mode, fallback for DEV mode
             if hasattr(self.pipeline.env_config, 'is_dev') and self.pipeline.env_config.is_dev:
                 logger.info("DEV mode detected, using fallback processing")
                 results = self.pipeline._fallback_process(prompts)
@@ -132,7 +131,10 @@ class BatchWorker:
             
             self._update_job_status(job_id, "completed", completed_at=time.time())
             self.gpu_scheduler.release_gpu(job_id)
-            
+            next_job_id = self.gpu_scheduler.process_waiting_queue()
+            if next_job_id:
+                logger.info(f"GPU freed from completed job {job_id}, allocated to waiting job {next_job_id}")
+
         except Exception as e:
             logger.error(f"Job {job_id} failed: {e}")
             import traceback
@@ -145,7 +147,10 @@ class BatchWorker:
             
             self._update_job_status(job_id, "failed", completed_at=time.time())
             self.gpu_scheduler.release_gpu(job_id)
-
+            next_job_id = self.gpu_scheduler.process_waiting_queue()
+            if next_job_id:
+                logger.info(f"GPU freed from failed job {job_id}, allocated to waiting job {next_job_id}")
+                
     def _load_prompts(self, input_file: str) -> List[str]:
         prompts = []
         with open(input_file, 'r') as f:
