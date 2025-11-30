@@ -111,47 +111,6 @@ async def debug_gpu_pools():
     else:
         return {"error": "Worker not initialized"}
 
-from fastapi import UploadFile, File
-import aiofiles
-@app.post("/v1/files")
-async def upload_file(file: UploadFile = File(...)):
-    
-    if not file.filename.endswith('.jsonl'):
-        raise HTTPException(status_code=400, detail="Only .jsonl files are supported")
-    
-    try:
-        file_id = str(uuid.uuid4())[:12]
-        file_path = os.path.join(BATCH_DIR, f"{file_id}.jsonl")
-        
-        async with aiofiles.open(file_path, 'wb') as f:
-            content = await file.read()
-            await f.write(content)
-        
-        line_count = 0
-        async with aiofiles.open(file_path, 'r') as f:
-            async for line in f:
-                if line.strip():
-                    try:
-                        json.loads(line)
-                        line_count += 1
-                    except json.JSONDecodeError:
-                        raise HTTPException(status_code=400, detail="Invalid JSONL format")
-        
-        logger.info(f"Uploaded file {file.filename} as {file_id} with {line_count} lines")
-        
-        return {
-            "id": file_id,
-            "object": "file",
-            "filename": file.filename,
-            "created_at": int(time.time()),
-            "purpose": "batch",
-            "bytes": len(content),
-            "lines": line_count
-        }
-        
-    except Exception as e:
-        logger.error(f"File upload failed: {e}")
-        raise HTTPException(status_code=500, detail="File upload failed")
      
 # ---------------------------
 # Endpoints
@@ -209,75 +168,15 @@ async def list_batches():
     except Exception as e:
         logger.error(f"Failed to list batches: {e}")
         raise HTTPException(status_code=500, detail="Failed to list batches")
-
-@app.post("/v1/batches/{batch_id}/cancel")
-async def cancel_batch(batch_id: str):
-    job_path = os.path.join(BATCH_DIR, f"job_{batch_id}.json")
     
-    try:
-        if not os.path.exists(job_path):
-            raise HTTPException(status_code=404, detail="Batch not found")
-        
-        with open(job_path, "r") as f:
-            job = json.load(f)
-        
-        current_status = job.get("status", "unknown")
-        
-        if current_status in ["running", "completed", "failed", "cancelled"]:
-            return {
-                "id": job.get("id", batch_id),
-                "object": "batch",
-                "created_at": job.get("created_at", 0),
-                "completed_at": job.get("completed_at", 0),
-                "status": current_status,
-                "error": f"Cannot cancel batch in '{current_status}' status"
-            }
-        
-        job["status"] = "cancelled"
-        job["completed_at"] = time.time()
-        
-        if 'batch_worker' in globals():        
-            logger.info(f"Cancelling batch {batch_id}")
-        
-        with open(job_path, "w") as f:
-            json.dump(job, f, indent=2)
-        
-        logger.info(f"Batch {batch_id} cancelled successfully")
-        
-        return {
-            "id": job.get("id", batch_id),
-            "object": "batch",
-            "created_at": job.get("created_at", 0),
-            "completed_at": job.get("completed_at"),
-            "status": "cancelled"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to cancel batch {batch_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to cancel batch")
         
 @app.post("/v1/batches", response_model=OpenAIBatchResponse)
 async def create_openai_batch(request: OpenAIBatchRequest):
     try:
-        # Handle both inline input and file_id
-        if request.input_file_id:
-            # Load prompts from uploaded file
-            file_path = os.path.join(BATCH_DIR, f"{request.input_file_id}.jsonl")
-            if not os.path.exists(file_path):
-                raise HTTPException(status_code=404, detail="Input file not found")
-            
-            prompts = []
-            with open(file_path, 'r') as f:
-                for line in f:
-                    if line.strip():
-                        data = json.loads(line)
-                        prompts.append(data.get("prompt", ""))
-        elif request.input:
+        if request.input:
             prompts = [item.get("prompt", "") for item in request.input]
         else:
-            raise HTTPException(status_code=400, detail="Either input or input_file_id must be provided")
+            raise HTTPException(status_code=400, detail="No input prompts provided")
         
         created_at = float(time.time())
         batch_id = str(uuid.uuid4())[:12]  

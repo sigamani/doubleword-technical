@@ -25,7 +25,6 @@ class BatchResponse(BaseModel):
 class OpenAIBatchRequest(BaseModel):
     model: str = "Qwen/Qwen2.5-0.5B-Instruct"
     input: List[Dict[str, str]] = None  
-    input_file_id: str = None  
     max_tokens: int = 256
     temperature: float = 0.7
 
