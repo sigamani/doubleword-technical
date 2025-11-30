@@ -2,21 +2,17 @@ FROM vllm/vllm-openai:latest
 
 WORKDIR /app
 
-# Install Hugging Face CLI
 RUN pip install --no-cache-dir huggingface_hub
 
-# Download model during build
 RUN mkdir -p /app/models && \
     curl -LsSf https://hf.co/cli/install.sh | bash && \
     export PATH="/root/.local/bin:$PATH" && \
     hf download Qwen/Qwen2.5-0.5B-Instruct --local-dir /app/models/Qwen2.5-0.5B-Instruct
 
-# Copy application code
 COPY api/ ./api/
 COPY pipeline/ ./pipeline/
 COPY config.py ./
 
-# Create non-root user
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
@@ -24,4 +20,4 @@ USER appuser
 
 EXPOSE 8001
 
-CMD ["/app/models/Qwen2.5-0.5B-Instruct", "--host", "0.0.0.0", "--port", "8001", "--max-model-len", "2048", "--gpu-memory-utilization", "0.8"]
+CMD ["python", "-m", "vllm.entrypoints.openai.api_server", "--model", "/app/models/Qwen2.5-0.5B-Instruct", "--host", "0.0.0.0", "--port", "8001", "--max-model-len", "2048", "--gpu-memory-utilization", "0.8"]

@@ -62,11 +62,3 @@ class SimpleQueue:
         return msgs
     def get_depth(self) -> int:
         return len(self.queue) + len(self.priority_queue)
-    
-
-if __name__ == "__main__":
-    q = SimpleQueue()
-    q.enqueue({"task": "process_data"}, priority=priorityLevels.LOW)
-    q.enqueue({"task": "urgent_task"}, priority=priorityLevels.HIGH)
-    from dataclasses import asdict
-    logger.debug([asdict(m) for m in q.dequeue(2)])

@@ -1,7 +1,6 @@
 """ Batch worker that processes jobs from the queue. """
 
 import sys
-import sys
 import os
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -129,7 +128,6 @@ class BatchWorker:
             
             logger.info(f"Saving results to {output_file}")
             self._save_results(output_file, results)
-                    except Exception as e:
             
             self._update_job_status(job_id, "completed", completed_at=time.time())
             self.gpu_scheduler.release_gpu(job_id)
@@ -177,67 +175,3 @@ class BatchWorker:
                 
         except Exception as e:
             logger.error(f"Failed to update job status for {job_id}: {e}")
-
-
-if __name__ == "__main__":
-    
-    from api.job_queue import SimpleQueue
-    import json
-    import tempfile
-    import os
-    
-    queue = SimpleQueue()
-    
-    with tempfile.TemporaryDirectory() as temp_dir:
-        
-        job_id = "test-job-123"
-        input_file = os.path.join(temp_dir, f"{job_id}_input.jsonl")
-        output_file = os.path.join(temp_dir, f"{job_id}_output.jsonl")
-        job_file = os.path.join(temp_dir, f"job_{job_id}.json")
-        
-        test_prompts = ["Hello world", "What is AI?", "Test prompt 3"]
-        with open(input_file, 'w') as f:
-            for prompt in test_prompts:
-                json.dump({"prompt": prompt}, f)
-                f.write("\n")
-        
-        job_data = {
-            "id": job_id,
-            "model": "test-model",
-            "status": "queued",
-            "created_at": 1234567890,
-            "num_prompts": len(test_prompts),
-            "input_file": input_file,
-            "output_file": output_file,
-            "error_file": os.path.join(temp_dir, f"{job_id}_errors.jsonl")
-        }
-        
-        with open(job_file, 'w') as f:
-            json.dump(job_data, f, indent=2)
-        
-        worker = BatchWorker(queue, batch_dir=temp_dir)
-        
-        job_payload = {
-            "job_id": job_id,
-            "input_file": input_file,
-            "output_file": output_file,
-            "model": "test-model",
-            "max_tokens": 64,
-            "temperature": 0.7,
-            "error_file": job_data["error_file"]
-        }
-        
-        msg_id = queue.enqueue(job_payload, priority=priorityLevels.LOW)
-        worker._process_job(job_payload)
-        
-        if os.path.exists(output_file):
-            logger.info("Output file created")
-            with open(output_file, 'r') as f:
-                results = [json.loads(line) for line in f if line.strip()]
-                logger.info(f"Generated {len(results)} results")
-                for i, result in enumerate(results[:2]):  
-                    print(f"   {i+1}. {result}...")
-        
-        with open(job_file, 'r') as f:
-            updated_job = json.load(f)
-            print(f"Job status: {updated_job['status']}")

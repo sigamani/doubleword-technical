@@ -12,7 +12,7 @@ from config import EnvironmentConfig, ModelConfig
 logger = logging.getLogger(__name__)
 
 from config import EnvironmentConfig, ModelConfig
-from pipeline.inference import create_dataset, create_mock_result
+from pipeline.inference import create_mock_result
 
 class RayBatchProcessor:
     def __init__(self, model_config: ModelConfig, env_config: EnvironmentConfig):
@@ -31,9 +31,8 @@ class RayBatchProcessor:
         try:
             import requests
             
-            # Use vLLM HTTP API instead of direct import
             self.vllm_api_url = "http://vllm:8001/v1/completions"
-            self.vllm_engine = True  # Flag to indicate HTTP mode
+            self.vllm_engine = True  
             
             logger.info(f"vLLM HTTP client initialized for API: {self.vllm_api_url}")
             
@@ -107,45 +106,7 @@ class RayBatchProcessor:
     
     def _execute_batch_processing(self, prompts: List[str]) -> List[Dict[str, Any]]:
         logger.info(f"Processing {len(prompts)} prompts with mock inference")
-        # Skip Ray Data for now and use direct mock processing
         return self._fallback_process(prompts)
-    
-    def _process_with_mock(self, ds) -> List[Dict[str, Any]]:
-        logger.info("Using Ray Data map_batches with mock inference")
-        def process_batch_with_mock(batch, is_dev):
-            results = []
-            if isinstance(batch, dict) and 'prompt' in batch:
-                prompts = batch['prompt']
-                if hasattr(prompts, '__iter__') and not isinstance(prompts, str):
-                    for prompt in prompts:
-                        result = create_mock_result(str(prompt), is_dev)
-                        results.append(result.to_dict())
-                else:
-                    result = create_mock_result(str(prompts), is_dev)
-                    results.append(result.to_dict())
-            else:
-                for item in batch:
-                    if hasattr(item, 'get'):
-                        prompt = item.get('prompt', str(item))
-                    else:
-                        prompt = str(item)
-                    result = create_mock_result(prompt, is_dev)
-                    results.append(result.to_dict())
-            return {"results": results}
-        
-        batch_fn = lambda batch: process_batch_with_mock(batch, self.env_config.is_dev)
-        processed_ds = ds.map_batches(batch_fn, batch_size=self.model_config.batch_size)
-        batches = processed_ds.take_all()
-        
-        all_results = []
-        for batch in batches:
-            if isinstance(batch, dict) and 'results' in batch:
-                all_results.extend(batch['results'])
-            elif isinstance(batch, list):
-                all_results.extend(batch)
-            else:
-                all_results.append(batch)
-        return all_results
     
     def _fallback_process(self, prompts: List[str]) -> List[Dict[str, Any]]:
         results = [create_mock_result(p, self.env_config.is_dev) for p in prompts]

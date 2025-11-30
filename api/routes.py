@@ -3,7 +3,6 @@
 import sys
 import os
 
-import config
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)
@@ -262,7 +261,24 @@ async def cancel_batch(batch_id: str):
 @app.post("/v1/batches", response_model=OpenAIBatchResponse)
 async def create_openai_batch(request: OpenAIBatchRequest):
     try:
-        prompts = [item.get("prompt", "") for item in request.input]
+        # Handle both inline input and file_id
+        if request.input_file_id:
+            # Load prompts from uploaded file
+            file_path = os.path.join(BATCH_DIR, f"{request.input_file_id}.jsonl")
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail="Input file not found")
+            
+            prompts = []
+            with open(file_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        data = json.loads(line)
+                        prompts.append(data.get("prompt", ""))
+        elif request.input:
+            prompts = [item.get("prompt", "") for item in request.input]
+        else:
+            raise HTTPException(status_code=400, detail="Either input or input_file_id must be provided")
+        
         created_at = float(time.time())
         batch_id = str(uuid.uuid4())[:12]  
         
@@ -290,21 +306,31 @@ async def create_openai_batch(request: OpenAIBatchRequest):
         priority = calculate_priority(created_at, len(prompts))
         logger.info(f"Enqueuing batch {batch_id} with priority {priority} and {len(prompts)} prompts")
         
-        job_queue.enqueue({
+        job_payload = {
             "job_id": batch_id,
             "input_file": input_path,
             "output_file": os.path.join(BATCH_DIR, f"{batch_id}_output.jsonl"),
             "model": request.model,
             "max_tokens": request.max_tokens,
-            "temperature": request.temperature
-        }, priority=priority)
+            "temperature": request.temperature,
+            "error_file": os.path.join(BATCH_DIR, f"{batch_id}_errors.jsonl")
+        }
+        
+        msg_id = job_queue.enqueue(job_payload, priority=priority)
         
         return OpenAIBatchResponse(
             id=batch_id,
+            object="batch",
             created_at=int(created_at),
-            status="queued"
+            status="queued",
+            total_prompts=len(prompts),
+            model=request.model
         )
+        
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to create batch: {e}")
         raise HTTPException(status_code=500, detail="Failed to create batch")
 
 @app.get("/v1/batches/{batch_id}")

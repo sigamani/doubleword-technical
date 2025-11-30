@@ -4,7 +4,6 @@
 # against spot and dedicated GPU instances rented from faster, lower-cost providers such as
 # Vast.ai or Lambda Labs before deploying to AWS, GCP, or Azure.
 
-
 services:
   api:
     build:
