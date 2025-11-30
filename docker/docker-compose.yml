@@ -1,8 +1,15 @@
+# Docker Compose configuration for the API and vLLM services. This file defines and runs a
+# multi-container setup intended for a staging environment. The goal is to simulate the
+# production architecture as closely as possible. In practice, this setup is designed to run
+# against spot and dedicated GPU instances rented from faster, lower-cost providers such as
+# Vast.ai or Lambda Labs before deploying to AWS, GCP, or Azure.
+
+
 services:
   api:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.simple
+      dockerfile: docker/Dockerfile.api
     environment:
       - RAY_BACKEND=log
       - ENVIRONMENT=DEV
@@ -22,7 +29,7 @@ services:
     environment:
       - RAY_BACKEND=log
       - ENVIRONMENT=DEV
-      - GPU_AVAILABLE=true # This needs to be true we are assuming we are on an NVIDIA GPU machine
+      - GPU_AVAILABLE=true 
     working_dir: /app
     command: python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-0.5B-Instruct --host 0.0.0.0 --port 8001
     ports:

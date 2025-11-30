@@ -1,3 +1,5 @@
+""" Ray Batch Processor for handling batch inference with vLLM or mock processing. """
+
 import sys
 import os
 current_dir = os.path.dirname(os.path.abspath(__file__))

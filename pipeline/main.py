@@ -1,3 +1,5 @@
+""" Main pipeline for batch processing using Ray. """
+
 import logging
 from ..config import EnvironmentConfig, ModelConfig
 from .ray_batch import RayBatchProcessor

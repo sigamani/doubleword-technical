@@ -1,4 +1,5 @@
 """Main entry point for the offline batch inference service."""
+
 from ray import logger
 import uvicorn
 

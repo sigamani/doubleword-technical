@@ -1,3 +1,5 @@
+""" The idea is to keep all configuration parameters centralised in one file."""
+
 import os
 from dataclasses import dataclass
 from typing import Dict, Any
@@ -22,7 +24,7 @@ class BatchConfig:
     max_queue_depth: int = int(os.getenv("MAX_QUEUE_DEPTH", "5000"))
     job_timeout_seconds: float = float(os.getenv("JOB_TIMEOUT_SECONDS", "30.0"))
     worker_poll_interval: float = float(os.getenv("WORKER_POLL_INTERVAL", "0.1"))
-    
+
 @dataclass
 class ModelConfig:
     model_name: str

@@ -1,3 +1,5 @@
+""" API routes for batch inference service. """
+
 import sys
 import os
 

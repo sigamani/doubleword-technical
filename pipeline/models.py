@@ -1,7 +1,7 @@
+""" Data models for batch processing pipeline. """
 
 from dataclasses import dataclass
 from typing import Any
-
 
 @dataclass
 class InferenceRequest:

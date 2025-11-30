@@ -1,3 +1,5 @@
+""" Batch worker that processes jobs from the queue. """
+
 import sys
 import sys
 import os
