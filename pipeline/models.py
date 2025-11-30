@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pydantic import BaseModel
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 @dataclass
 class InferenceRequest:

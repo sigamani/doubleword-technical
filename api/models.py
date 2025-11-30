@@ -1,7 +1,7 @@
 """ Data models for batch processing API. """
 
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 import logging
 
@@ -24,7 +24,8 @@ class BatchResponse(BaseModel):
 
 class OpenAIBatchRequest(BaseModel):
     model: str = "Qwen/Qwen2.5-0.5B-Instruct"
-    input: List[Dict[str, str]] = None  
+    input: Optional[List[Dict[str, str]]] = None  
+    input_file_id: Optional[str] = None
     max_tokens: int = 256
     temperature: float = 0.7
 
