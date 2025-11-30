@@ -26,9 +26,7 @@ ease of validation across teams.
 I intentionally avoided Redis (and all DB integration) at this stage. 
 For me, database integration would have come with a lot of operational complexity
 with minimal payoff at this stage. Since I considered it more important to
-validate the core queuing logic. For transparency and simplicity: -
-Used Python’s native deque - Implemented FIFO - Avoided hiding behaviour
-behind external systems
+validate the core queuing logic (FIFO).
 
 ### **<span style="color:#E74C3C;"> Docker + Docker Compose</span>**  
 The [docker](https://github.com/sigamani/PoC-offline-batch-inference/tree/main/docker) directory contains the staging environment setup details. 
