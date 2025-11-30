@@ -2,17 +2,13 @@ FROM vllm/vllm-openai:latest
 
 WORKDIR /app
 
-# Copy requirements first for better caching
 COPY requirements.dev ./
 
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.dev
 
-# Copy application code
 COPY api/ ./api/
 COPY pipeline/ ./pipeline/
 
-# Create non-root user
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
@@ -20,4 +16,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["python", "-m", "api.main"]
+CMD ["python", "-m", "vllm.entrypoints.openai.api_server", "--model", "Qwen/Qwen2.5-0.5B-Instruct", "--host", "0.0.0.0", "--port", "8000"]

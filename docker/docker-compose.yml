@@ -15,6 +15,29 @@ services:
         - ../api:/app/api
         - ../pipeline:/app/pipeline
         - batch_storage:/tmp
+  vllm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.vllm
+    environment:
+      - RAY_BACKEND=log
+      - ENVIRONMENT=DEV
+      - GPU_AVAILABLE=true # This needs to be true we are assuming we are on an NVIDIA GPU machine
+    working_dir: /app
+    command: python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-0.5B-Instruct --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    volumes:
+        - ../api:/app/api
+        - ../pipeline:/app/pipeline
+        - batch_storage:/tmp
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 volumes:
   batch_storage:
     driver: local
