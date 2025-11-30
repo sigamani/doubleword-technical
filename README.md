@@ -181,10 +181,11 @@ bash setup.sh
 docker compose -f docker/docker-compose.yaml up --build
 
 Then repeat the steps from the CURL request above.
+```
 
 - Also swagger docs are available at http://localhost:8000/docs
 - And a walkthrough notebook [here](https://github.com/sigamani/PoC-offline-batch-inference/blob/main/examples/client_submit.ipynb)
-```
+  
 </details>
 
 ---
