@@ -1,55 +1,45 @@
-Below is **GitHub-ready Markdown**, using **bold**, *italics*, and **HTML-based colors** (GitHub allows inline HTML).
-No extras added.
-
----
-
-# Offline Batch Inference (OpenAI-Style)
+# 🌐 **Offline Batch Inference (OpenAI-Style)**  
 
 ## Overview
 
-This Proof-of-Concept (PoC) implements an **offline batch inference system** that validates core architectural patterns for **request marshalling**, **job lifecycle management**, and **compute resource allocation**.
-Dependencies are intentionally minimal so attention stays on the system design and behaviour.
+Overview
 
-<br>
+This Proof-of-Concept (PoC) implements an offline batch inference system
+that validates core architectural patterns for request marshalling, job
+lifecycle management, and compute resource allocation. Dependencies are
+intentionally minimal so attention stays on the system design and
+behaviour.
 
 ### <span style="color:#4A90E2;"><strong>Motivating Component Choices</strong></span>
 
----
+### **<span style="color:#E67E22;">Ray Data (2.49.1)</span>** 
+RayCore is widely used for distributed Python data
+processing. Ray Data recently added native map-style batch transforms
+and LLM engine integration (vLLM, SGLang). This PoC evaluates how
+practical these new features are in real usage.
 
-### **<span style="color:#E67E22;">Ray Data (2.49.1)</span>**
+### **<span style="color:#9B59B6;">vLLM (0.10.0)</span>** 
+Industry default for high-throughput, Python-native LLM
+inference. Fast to integrate and simpler than TensorRT-LLM for a PoC.
 
-RayCore is widely used for distributed Python data processing.
-Ray Data recently added **native map-style batch transforms** and **LLM engine integration** (vLLM, SGLang).
-This PoC evaluates how practical these new features are in real usage, given that Ray's LLM path is still early-stage.
+### **<span style="color:#2ECC71;">FastAPI</span>** 
+Fast, minimal, and ideal for PoC iteration. Swagger UI improves
+ease of validation across teams.
 
----
+### **<span style="color:#E74C3C;">collections.deque</span>** 
+I intentionally avoided Redis at this stage. Using
+Redis would introduce tuning and operational variables unrelated to
+validating the core queuing logic. For transparency and simplicity: -
+Used Python’s native deque - Implemented FIFO - Avoided hiding behaviour
+behind external systems
 
-### **<span style="color:#9B59B6;">vLLM (0.10.0)</span>**
+Docker + Docker Compose The docker/ directory contains the staging
+environment. Validated using low-cost GPU nodes on Vast.ai but
+compatible with any NVIDIA-equipped machine. Primary goals: - Integrate
+vllm==0.10.0 with FastAPI + Ray Data 2.49.1 - Test full pipeline using a
+real model - Keep staging under 24 GiB VRAM using Qwen2.5-0.5B. For production: transition to Kubernetes or KubeRay.
 
-Industry default for **high-throughput, Python-native LLM inference**.
-Fast to integrate, predictable scheduling, and far simpler than TensorRT-LLM for a PoC.
-
----
-
-### **<span style="color:#2ECC71;">FastAPI</span>**
-
-Fast, minimal, and ideal for PoC iteration.
-Swagger UI makes validation easier across a team.
-Ray Serve was considered, but FastAPI’s low overhead and clarity made it the right choice here.
-
----
-
-### **<span style="color:#E74C3C;">collections.deque</span>**
-
-*I intentionally avoided Redis at this stage.*
-Using Redis would introduce tuning and operational variables unrelated to validating the core queuing logic.
-For transparency and simplicity:
-
-* Used **Python’s native** `collections.deque`
-* Implemented a **straightforward FIFO** policy
-* Avoided hiding queue behaviour behind external abstractions
-
-In production, Redis, Redis Streams, Celery, or Kafka could replace it if stronger guarantees or distributed semantics are required.
+Lastly, in production I would consider using Redis, Redis Streams, Celery, or Kafka.
 
 ---
 
