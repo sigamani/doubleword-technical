@@ -1,4 +1,4 @@
-# Offline Batch Inference  
+# :monkey: Offline Batch Inference  
 
 ## Overview
 
