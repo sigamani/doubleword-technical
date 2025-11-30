@@ -67,7 +67,7 @@ class RayBatchProcessor:
                 response = requests.post(
                     self.vllm_api_url,
                     json={
-                        "model": self.model_config.model_name,
+                        "model": "/app/models/Qwen2.5-0.5B-Instruct",
                         "prompt": prompt,
                         "max_tokens": self.model_config.max_tokens,
                         "temperature": self.model_config.temperature
@@ -78,8 +78,16 @@ class RayBatchProcessor:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    response_text = data["choices"][0]["text"]
-                    tokens = len(data["choices"][0].get("logprobs", {}).get("token_ids", []))
+                    if data.get("choices") and len(data["choices"]) > 0:
+                        response_text = data["choices"][0]["text"]
+                        logprobs = data["choices"][0].get("logprobs")
+                        if logprobs and "token_ids" in logprobs:
+                            tokens = len(logprobs["token_ids"])
+                        else:
+                            tokens = 0
+                    else:
+                        response_text = "Error: No choices in response"
+                        tokens = 0
                 else:
                     response_text = f"Error: HTTP {response.status_code}"
                     tokens = 0

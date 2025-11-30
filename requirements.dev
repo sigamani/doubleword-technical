@@ -6,4 +6,3 @@ python-multipart==0.0.20
 pytest>2.3.0
 ray[data]==2.49.1
 requests>=2.25.0
-vllm==0.10.0
