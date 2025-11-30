@@ -1,6 +1,9 @@
 # !/bin/bash
 
-# install Docker CE
+# Install Docker CE 
+# IMPORTANT: Make sure you install docker-compose v2. 
+# Version 1 has known incompatibility issues and you will get a "KeyError: 'ContainerConfig'" error 
+# when issuing "docker-compose -f docker/docker-compose.yaml up --build".
 sudo apt-get update
 sudo apt-get install -y nvidia-container-toolkit
 sudo apt-get install -y ca-certificates curl gnupg
