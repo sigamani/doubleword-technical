@@ -27,16 +27,17 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 class BatchWorker:
-    def __init__(self, queue: SimpleQueue, batch_dir: str = None):
+    def __init__(self, queue: SimpleQueue, batch_dir: str | None = None, gpu_scheduler: MockGPUScheduler | None = None):
         self.queue = queue
-        self.batch_dir = BatchConfig().batch_dir if batch_dir is None else batch_dir
+        config = BatchConfig()
+        self.batch_dir = config.batch_dir if batch_dir is None else batch_dir
         self.pipeline = RayBatchProcessor(
             ModelConfig.default(), 
             EnvironmentConfig.from_env()
         )
         self.running = False
         self.worker_thread = None
-        self.gpu_scheduler = MockGPUScheduler()
+        self.gpu_scheduler = gpu_scheduler if gpu_scheduler is not None else MockGPUScheduler()
 
     def start(self):
         if self.running:
@@ -66,13 +67,13 @@ class BatchWorker:
                     
                 job_msg = messages[0]
                 logger.info(f"Got job: {job_msg.payload.get('job_id')}")
-                self._process_job(job_msg.payload)
+                self._process_job(job_msg.payload, job_msg.priority)
                 
             except Exception as e:
                 logger.error(f"Worker loop error: {e}")
                 time.sleep(1.0)  
 
-    def _process_job(self, job_data: Dict[str, Any]) -> None:
+    def _process_job(self, job_data: Dict[str, Any], priority: priorityLevels = priorityLevels.LOW) -> None:
         job_id = job_data.get("job_id")
         input_file = job_data.get("input_file")
         output_file = job_data.get("output_file")
@@ -81,7 +82,7 @@ class BatchWorker:
             raise ValueError(f"Missing required job data: job_id={job_id}, input_file={input_file}, output_file={output_file}")
         
         try:
-            allocation_result = self.gpu_scheduler.allocate_gpu(job_id, priority_level=1)
+            allocation_result = self.gpu_scheduler.allocate_gpu(job_id, priority_level=priority)
             if not allocation_result.allocated:
                 logger.error(f"Failed to allocate GPU for job {job_id}: {allocation_result.reason}")
                 self._update_job_status(job_id, "failed", completed_at=time.time())
@@ -108,7 +109,7 @@ class BatchWorker:
                     def timeout_handler():
                         timeout_occurred.set()
                     
-                    timer = threading.Timer(30.0, timeout_handler)  
+                    timer = threading.Timer(5.0, timeout_handler)  
                     timer.start()
                     
                     results = self.pipeline.process_batch(prompts)
@@ -163,15 +164,19 @@ class BatchWorker:
     def _update_job_status(self, job_id: str, status: str, completed_at: float | None = None):
         job_path = os.path.join(self.batch_dir, f"job_{job_id}.json")
         try:
-            with open(job_path, 'r') as f:
-                job_data = json.load(f)
+            os.makedirs(self.batch_dir, exist_ok=True)
+            
+            job_data = {}
+            if os.path.exists(job_path):
+                with open(job_path, 'r') as f:
+                    job_data = json.load(f)
             
             job_data["status"] = status
             if completed_at is not None:
                 job_data["completed_at"] = completed_at
-                
+                    
             with open(job_path, 'w') as f:
                 json.dump(job_data, f, indent=2)
-                
+                    
         except Exception as e:
             logger.error(f"Failed to update job status for {job_id}: {e}")

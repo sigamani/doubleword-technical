@@ -30,7 +30,7 @@ class AllocationResult:
     reason: str
     cost_estimate: float = 0.0
     wait_time: float = 0.0
-    queue_position: int = 0
+    queue_position: int = 0  
 
 class MockGPUScheduler:
     def __init__(self, spot_capacity: int = 2, dedicated_capacity: int = 1):
@@ -55,17 +55,27 @@ class MockGPUScheduler:
         self.rejected_jobs = 0
         self.total_allocations = 0 
         
-    def allocate_gpu(self, job_id: str, priority_level: priorityLevels = priorityLevels.LOW) -> AllocationResult:
+    def allocate_gpu(self, job_id: str, priority_level) -> AllocationResult:
         start_time = time.time()
         
+        if isinstance(priority_level, int):
+            priority_level = priorityLevels(priority_level)
+        elif not isinstance(priority_level, priorityLevels):
+            priority_level = priorityLevels.LOW
+        
+        logger.debug(f"allocate_gpu called with job_id={job_id}, priority={priority_level}")
+        
         if self._no_resources_available():
+            logger.debug(f"No resources available, job {job_id} will be queued")
             if priority_level == priorityLevels.HIGH:
                 self.waiting_queue.insert(0, job_id)
+                queue_pos = 1
             else:
                 self.waiting_queue.append(job_id)
+                queue_pos = len(self.waiting_queue)
             
-            queue_pos = self.waiting_queue.index(job_id) + 1 
-
+            logger.debug(f"Job {job_id} queued at position {queue_pos}")
+            
             return AllocationResult(
                 pool_type=PoolType.SPOT,
                 allocated=False,
@@ -75,19 +85,25 @@ class MockGPUScheduler:
             )
         
         if priority_level == priorityLevels.HIGH:
+            logger.debug(f"Allocating dedicated GPU for job {job_id}")
             allocation = self._try_allocate_dedicated(job_id)
             if not allocation.allocated:
+                logger.debug(f"Dedicated allocation failed, trying spot")
                 allocation = self._try_allocate_spot(job_id)
         else:
+            logger.debug(f"Allocating spot GPU for job {job_id}")
             allocation = self._try_allocate_spot(job_id)
             if not allocation.allocated:
+                logger.debug(f"Spot allocation failed, trying dedicated for job {job_id}")
                 allocation = self._try_allocate_dedicated(job_id)
         
         if allocation.allocated:
+            logger.info(f"Allocated {allocation.pool_type.value} GPU for job {job_id} (priority: {priority_level.name})")
             self.allocation_times[job_id] = time.time()
             self.total_allocations += 1
-            logger.info(f"Allocated {allocation.pool_type.value} GPU for job {job_id} (priority: {priority_level})")
-            
+        else:
+            logger.debug(f"Allocation failed - {allocation.reason}")
+        
         return allocation
     
     def release_gpu(self, job_id: str) -> None:
@@ -127,27 +143,43 @@ class MockGPUScheduler:
         spot_pool = self.pools[PoolType.SPOT]
         if spot_pool.available > 0:
             spot_pool.available -= 1
-            self.allocations[job_id] = PoolType.SPOT
+            self.allocations[job_id] = PoolType.SPOT 
+            
             return AllocationResult(
                 pool_type=PoolType.SPOT,
                 allocated=True,
                 reason="Spot instance available (cost-effective)",
-                cost_estimate=spot_pool.cost_per_hour
+                cost_estimate=spot_pool.cost_per_hour,
+                queue_position=0  
             )
-        return AllocationResult(PoolType.SPOT, False, "No spot available")
+        else:
+            return AllocationResult(
+                pool_type=PoolType.SPOT,
+                allocated=False,
+                reason="No spot instances available",
+                queue_position=0
+            )   
     
     def _try_allocate_dedicated(self, job_id: str) -> AllocationResult:
         dedicated_pool = self.pools[PoolType.DEDICATED]
         if dedicated_pool.available > 0:
             dedicated_pool.available -= 1
             self.allocations[job_id] = PoolType.DEDICATED
+
             return AllocationResult(
                 pool_type=PoolType.DEDICATED,
                 allocated=True,
-                reason="Spot unavailable, using dedicated instance",
-                cost_estimate=dedicated_pool.cost_per_hour
+                reason="Dedicated instance available",
+                cost_estimate=dedicated_pool.cost_per_hour,
+                queue_position=0  
             )
-        return AllocationResult(PoolType.DEDICATED, False, "No dedicated available")
+        else:
+            return AllocationResult(
+                pool_type=PoolType.DEDICATED,
+                allocated=False,
+                reason="No dedicated instances available",
+                queue_position=0
+            )
     
     def get_metrics(self) -> Dict:
         total_capacity = sum(pool.capacity for pool in self.pools.values())

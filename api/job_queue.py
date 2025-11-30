@@ -37,7 +37,7 @@ class SimpleQueue:
         msg = QueueMessage(
             message_id=str(uuid.uuid4())[:8],
             payload=payload,
-            priority=priority.value,
+            priority=priority,
             timestamp=time.time()
         )
         
