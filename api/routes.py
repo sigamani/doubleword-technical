@@ -16,6 +16,7 @@ import json
 from typing import List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from api.models import BatchRequest, BatchResponse, OpenAIBatchRequest, OpenAIBatchResponse, priorityLevels
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,15 @@ app = FastAPI(
     title="Ray Data vLLM Batch Inference",
     version="1.0.0",
     description="Minimal batch inference PoC"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 
