@@ -2,8 +2,6 @@
 
 ## Overview
 
-Overview
-
 This Proof-of-Concept (PoC) implements an offline batch inference system
 that validates core architectural patterns for request marshalling, job
 lifecycle management, and compute resource allocation. Dependencies are
@@ -33,8 +31,8 @@ validating the core queuing logic. For transparency and simplicity: -
 Used Python’s native deque - Implemented FIFO - Avoided hiding behaviour
 behind external systems
 
-Docker + Docker Compose The docker/ directory contains the staging
-environment. Validated using low-cost GPU nodes on Vast.ai but
+### **<span style="color:#E74C3C;"> Docker + Docker Compose</span>**  
+The [docker](https://github.com/sigamani/PoC-offline-batch-inference/tree/main/docker)/ directory contains the staging environment. Validated using low-cost GPU nodes on Vast.ai but
 compatible with any NVIDIA-equipped machine. Primary goals: - Integrate
 vllm==0.10.0 with FastAPI + Ray Data 2.49.1 - Test full pipeline using a
 real model - Keep staging under 24 GiB VRAM using Qwen2.5-0.5B. For production: transition to Kubernetes or KubeRay.
