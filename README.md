@@ -35,7 +35,7 @@ compatible with any NVIDIA-equipped machine.
 
 ---
 <details>
-<summary><strong> 1. Research with Perplexity Search </strong></summary>
+<summary><strong> 1. Industry Overview </strong></summary>
 
 <br>
 
