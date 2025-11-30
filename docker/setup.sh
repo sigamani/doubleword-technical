@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Wait for locks with timeout
 echo "Waiting for package locks to be released (max 60 seconds)..."
 timeout=60
 elapsed=0
@@ -18,7 +17,6 @@ done
 
 echo "Locks released. Proceeding with installation..."
 
-# 1. Install Docker CE
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg
 
@@ -34,22 +32,18 @@ echo \
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# 2. Add NVIDIA Container Toolkit repository
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
 
 curl -s -L https://nvidia.github.io/libnvidia-container/$(. /etc/os-release; echo $ID$VERSION_ID)/libnvidia-container.list \
   | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
   | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
-# 3. Install nvidia-container-toolkit
 sudo apt-get update
 sudo apt-get install -y nvidia-container-toolkit
 
-# 4. Configure NVIDIA runtime
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 
-# 5. Verify installation
 echo "========================================"
 echo "Verifying Docker installation..."
 sudo docker --version

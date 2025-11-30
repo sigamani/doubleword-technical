@@ -1,4 +1,4 @@
-# 🌐 **Offline Batch Inference**  
+# Offline Batch Inference  
 
 ## Overview
 
@@ -8,27 +8,27 @@ lifecycle management, and compute resource allocation. Dependencies are
 intentionally minimal so attention stays on the system design and
 behaviour. For this Poc, I made the following choices:
 
-### **<span style="color:#E67E22;">Ray Data (2.49.1)</span>** 
+### Ray Data (2.49.1) 
 RayCore is widely used for distributed Python data
 processing. Ray Data recently added native map-style batch transforms
 and LLM engine integration (vLLM, SGLang). This PoC evaluates how
 practical these new features are when integrating with actual buisness use cases.
 
-### **<span style="color:#9B59B6;">vLLM (0.10.0)</span>** 
+### vLLM (0.10.0) 
 Industry default for high-throughput, Python-native LLM
 inference. Fast to integrate and simpler than TensorRT-LLM for a PoC.
 
-### **<span style="color:#2ECC71;">FastAPI (0.100.0) </span>** 
+### FastAPI (0.100.0) 
 Fast, minimal, and ideal for PoC iteration. Swagger UI improves
 ease of validation across teams.
 
-### **<span style="color:#E74C3C;">collections.deque</span>** 
+### collections.deque 
 I intentionally avoided Redis (and all DB integration) at this stage. 
 For me, database integration would have come with a lot of operational complexity
 with minimal payoff at this stage. Since I considered it more important to
 validate the core queuing logic (FIFO).
 
-### **<span style="color:#E74C3C;"> Docker Compose (v2) </span>**  
+### Docker Compose (v2)  
 The [docker](https://github.com/sigamani/PoC-offline-batch-inference/tree/main/docker) directory contains the staging environment setup details. 
 Validated using low-cost GPU nodes on Vast.ai but
 compatible with any NVIDIA-equipped machine.
