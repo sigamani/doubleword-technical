@@ -175,10 +175,15 @@ curl http://localhost:8000/v1/batches/{batch_id}
 # Then have a look in /tmp/{batch_id} to see the output of the job 
 # There will be an input and output file.
 
-# For an actual test of the full pipeline run this:
-docker-compose -f docker/docker-compose.yaml up --build
+# For an actual STAGE test of the full pipeline run this:
+cd docker
+bash setup.sh
+docker compose -f docker/docker-compose.yaml up --build
 
-Then repeat the steps from the CURL request above. Also swagger docs are available at http://localhost:8000/docs
+Then repeat the steps from the CURL request above.
+
+- Also swagger docs are available at http://localhost:8000/docs
+- And a walkthrough notebook [here](https://github.com/sigamani/PoC-offline-batch-inference/blob/main/examples/client_submit.ipynb)
 ```
 </details>
 
