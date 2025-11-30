@@ -1,4 +1,3 @@
-"""Pydantic models for the batch inference API."""
 from enum import Enum
 from typing import Any, Dict, List
 from pydantic import BaseModel

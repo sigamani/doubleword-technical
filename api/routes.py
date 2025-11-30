@@ -88,20 +88,7 @@ async def execute_batch_async(prompts: List[str]) -> List[Dict[str, Any]]:
         return await loop.run_in_executor(executor, pipeline.process_batch, prompts)
     else:
         return pipeline.process_batch(prompts)
-
-def save_batch(batch_id: str, model: str, results: List[Dict[str, Any]]):
-    path = os.path.join(BATCH_DIR, f"batch_{batch_id}.json")
-    data = {"id": batch_id, "model": model, "results": results, "created_at": int(time.time())}
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-    return path
-
-def load_batch(batch_id: str):
-    path = os.path.join(BATCH_DIR, f"batch_{batch_id}.json")
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Batch not found")
-    with open(path, "r") as f:
-        return json.load(f)
+    
 
 @app.get("/debug/worker")
 async def debug_worker():
@@ -220,72 +207,3 @@ async def get_openai_batch_results(batch_id: str):
         return {"object": "list", "data": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load batch results")
-
-
-if __name__ == "__main__":
-    import asyncio
-    
-    async def test_batch_workflow():
-        """Test the complete batch workflow"""
-        logger.info("Testing batch workflow...")
-        
-        logger.info("Creating batch job...")
-        test_request = {
-            "model": "Qwen/Qwen2.5-0.5B-Instruct",
-            "input": [
-                {"prompt": "What is 2+2?"},
-                {"prompt": "Explain AI in one sentence"},
-                {"prompt": "Hello world test"}
-            ],
-            "max_tokens": 50,
-            "temperature": 0.7
-        }
-        
-        try:
-            from fastapi.testclient import TestClient
-            client = TestClient(app)
-            response = client.post("/v1/batches", json=test_request)
-            
-            if response.status_code == 200:
-                batch_data = response.json()
-                batch_id = batch_data["id"]
-                logger.info(f"Batch created with ID: {batch_id}")
-                
-               
-                logger.info(f"Checking job status for {batch_id}...")
-                await asyncio.sleep(0.5)  
-                
-                status_response = client.get(f"/v1/batches/{batch_id}")
-                if status_response.status_code == 200:
-                    status_data = status_response.json()
-                    logger.info(f"Job status: {status_data['status']}")
-                else:
-                    logger.error(f"Status check failed: {status_response.status_code}")
-                
-                logger.info("Checking files...")
-                import os
-                job_file = f"/tmp/job_{batch_id}.json"
-                input_file = f"/tmp/{batch_id}_input.jsonl"
-                
-                if os.path.exists(job_file):
-                    logger.info("Job metadata file created")
-                else:
-                    logger.warning("Job metadata file missing")
-                    
-                if os.path.exists(input_file):
-                    logger.info("Input file created")
-                else:
-                    logger.warning("Input file missing")
-                
-                logger.info(f"Queue depth: {job_queue.get_depth()}")
-                
-            else:
-                logger.error(f"Batch creation failed: {response.status_code} - {response.text}")
-                
-        except Exception as e:
-            logger.error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    asyncio.run(test_batch_workflow())
-    logger.info("Tests completed!")

@@ -1,13 +1,23 @@
 FROM vllm/vllm-openai:latest
+
 WORKDIR /app
-COPY api/ ./api/
-COPY ../pipeline/ ./pipeline/
+
+# Copy requirements first for better caching
 COPY requirements.dev ./
-RUN pip install -r requirements.dev
-RUN useradd -m -u appuser
-RUN chown -R appuser:appuser /app
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.dev
+
+# Copy application code
+COPY api/ ./api/
+COPY pipeline/ ./pipeline/
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
 USER appuser
+
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+
 CMD ["python", "-m", "api.main"]
