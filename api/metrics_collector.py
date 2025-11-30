@@ -37,12 +37,10 @@ async def root():
 async def get_metrics():
     """Get system and application metrics."""
     try:
-        # System metrics
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
         
-        # Process metrics
         process = psutil.Process()
         process_memory = process.memory_info()
         
