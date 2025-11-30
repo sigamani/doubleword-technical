@@ -203,29 +203,23 @@ class TestSimpleQueue:
             queue.dequeue(count=1)
             assert queue.get_depth() == 4 - i
 
-    def test_max_depth_limit_current_behavior(self, queue, sample_payload):
-        """Test current max_depth behavior (BUG: currently ignored)."""
-        # This test documents the current buggy behavior
-        # Queue should reject messages after max_depth, but currently doesn't
-        
-        for i in range(5010): 
+    def test_max_depth_limit_enforced(self, queue, sample_payload):
+        for i in range(queue.max_depth): 
             payload = {**sample_payload, "job_id": f"job_{i}"}
             msg_id = queue.enqueue(payload, priorityLevels.LOW)
-            assert isinstance(msg_id, str)  # Currently succeeds even when over limit
+            assert msg_id is not None  
         
-        # Current buggy behavior: queue depth exceeds max_depth
-        assert queue.get_depth() == 5010
-        assert queue.get_depth() > queue.max_depth
+        assert queue.get_depth() == queue.max_depth
         
-        # TODO: After fixing the bug, this test should verify:
-        # - Messages are rejected after max_depth
-        # - Queue depth never exceeds max_depth
-        # - Appropriate error handling occurs
+        payload = {**sample_payload, "job_id": "job_too_many"}
+        msg_id = queue.enqueue(payload, priorityLevels.LOW)
+        assert msg_id is None  
+        
+        assert queue.get_depth() == queue.max_depth
 
     def test_queue_message_timestamps(self, queue, sample_payload):
         start_time = time.time()
         
-        # Enqueue a message first
         msg_id = queue.enqueue(sample_payload, priorityLevels.LOW)
         assert msg_id is not None
                 
@@ -250,6 +244,7 @@ class TestSimpleQueue:
             msg_ids.add(msg_id)
         
         assert len(msg_ids) == 100
+
     def test_large_batch_operations(self, queue, sample_payload):
         batch_size = 1000
         
