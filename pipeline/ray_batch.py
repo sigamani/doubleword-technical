@@ -111,7 +111,7 @@ class RayBatchProcessor:
     def _fallback_process(self, prompts: List[str]) -> List[Dict[str, Any]]:
         import time
         """Simulate processing delay and return mock results"""
-        time.sleep(2.0)  
+        time.sleep(0.5)  
         results = [create_mock_result(p, self.env_config.is_dev) for p in prompts]
         return [r.to_dict() for r in results]
     
