@@ -20,5 +20,7 @@ RUN useradd -m -u 1000 appuser && \
 USER appuser
 
 EXPOSE 8001
+EXPOSE 8002
 
-CMD ["--model", "/app/models/Qwen2.5-0.5B-Instruct", "--host", "0.0.0.0", "--port", "8001", "--max-model-len", "2048", "--gpu-memory-utilization", "0.8"]
+# Use the default entrypoint from the base image, just override the command
+CMD ["--model", "/app/models/Qwen2.5-0.5B-Instruct", "--host", "0.0.0.0", "--port", "8001", "--max-model-len", "1024", "--gpu-memory-utilization", "0.6", "--kv-cache-size", "0.1"]

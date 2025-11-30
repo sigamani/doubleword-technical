@@ -33,6 +33,7 @@ services:
     
     ports:
       - "8001:8001"
+      - "8002:8002"
     volumes:
         - ../api:/app/api
         - ../pipeline:/app/pipeline
@@ -44,6 +45,25 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  metrics:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    environment:
+      - RAY_BACKEND=log
+      - ENVIRONMENT=STAGE
+      - GPU_AVAILABLE=true
+    working_dir: /app
+    command: uvicorn api.metrics_collector:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    volumes:
+        - ../api:/app/api
+        - ../pipeline:/app/pipeline
+        - batch_storage:/tmp
+    depends_on:
+      - vllm
 volumes:
   batch_storage:
     driver: local
