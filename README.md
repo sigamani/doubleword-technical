@@ -90,7 +90,7 @@ no support from the wider community that would fall over in production. Since es
 ---
 
 <details>
-<summary><strong> 2. System Architecture </strong></summary>
+<summary><strong> 2. Installation & System Architecture </strong></summary>
 
 <br>
 
