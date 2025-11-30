@@ -169,8 +169,8 @@ no support from the wider community that would fall over in production. Since es
 git clone https://github.com/sigamani/PoC-offline-batch-inference.git
 cd PoC-offline-batch-inference
 
-# Start all services
-docker-compose up
+# Start the API server
+python api/main.py
 
 # Submit a batch job (example)
 curl -X POST http://localhost:8000/v1/batches -H "Content-Type: application/json" -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","input":[{"prompt":"What is 2+2?"},{"prompt":"Hello world"}],"max_tokens":50}'
@@ -180,6 +180,11 @@ curl http://localhost:8000/v1/batches/{batch_id}
 
 # Then have a look in /tmp/{batch_id} to see the output of the job 
 # There will be an input and output file.
+
+# For an actual test of the full pipeline run this:
+docker-compose -f docker/docker-compose.yaml up --build
+
+Then repeat the steps from the CURL request above. Also swagger docs are available at http://localhost:8000/docs
 ```
 </details>
 
