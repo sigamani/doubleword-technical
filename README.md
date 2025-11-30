@@ -6,7 +6,7 @@ This Proof-of-Concept (PoC) implements an offline batch inference system
 that validates core architectural patterns for request marshalling, job
 lifecycle management, and compute resource allocation. Dependencies are
 intentionally minimal so attention stays on the system design and
-behaviour. I chose the following components:
+behaviour. For this Poc, I made the following choices:
 
 ### **<span style="color:#E67E22;">Ray Data (2.49.1)</span>** 
 RayCore is widely used for distributed Python data
