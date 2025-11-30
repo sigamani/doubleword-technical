@@ -196,7 +196,7 @@ Then repeat the steps from the CURL request above.
 ---
 
 <details>
- <summary><strong> 3. Feature Scope </strong></summary>
+ <summary><strong> 3. What's in Scope, What's out of Scope </strong></summary>
 
 <br>
  
