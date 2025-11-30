@@ -33,7 +33,7 @@ Used Python’s native deque - Implemented FIFO - Avoided hiding behaviour
 behind external systems
 
 ### **<span style="color:#E74C3C;"> Docker + Docker Compose</span>**  
-The [docker](https://github.com/sigamani/PoC-offline-batch-inference/tree/main/docker)/ directory contains the staging environment. 
+The [docker](https://github.com/sigamani/PoC-offline-batch-inference/tree/main/docker) directory contains the staging environment setup details. 
 Validated using low-cost GPU nodes on Vast.ai but
 compatible with any NVIDIA-equipped machine.
 
