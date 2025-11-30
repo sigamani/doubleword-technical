@@ -14,6 +14,7 @@ from api.job_queue import SimpleQueue
 from config import ModelConfig, EnvironmentConfig
 from pipeline.ray_batch import RayBatchProcessor
 from api.gpu_scheduler import MockGPUScheduler
+from api.models import priorityLevels
 
 import logging
 import time
@@ -95,7 +96,7 @@ class BatchWorker:
             
             logger.info("Starting batch inference...")
             
-            # Use fallback processing for dev mode to avoid Ray Data issues
+            # Use real vLLM processing for STAGE mode, fallback for DEV mode
             if hasattr(self.pipeline.env_config, 'is_dev') and self.pipeline.env_config.is_dev:
                 logger.info("DEV mode detected, using fallback processing")
                 results = self.pipeline._fallback_process(prompts)
