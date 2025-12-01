@@ -159,9 +159,12 @@ no support from the wider community that would fall over in production. Since es
 ## Getting Started
 
 ```bash
-# Clone repository
+# Clone repository, create a virtual env, install dependencies
 git clone https://github.com/sigamani/PoC-offline-batch-inference.git
 cd PoC-offline-batch-inference
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.dev
 
 # Start the API server
 python api/main.py
