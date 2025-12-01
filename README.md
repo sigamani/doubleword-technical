@@ -35,8 +35,7 @@ compatible with any NVIDIA-equipped machine.
 
 ---
 
-## Installation: Local DEV build  
-<span style="color: #777; font-size: 0.9em;">no GPU / vLLM mocked</span>
+## Installation: Local Laptop | DEV 
 
 1. **Clone the repository and create a virtual environment**
 
@@ -79,8 +78,7 @@ The results will be saved in `/tmp/{batch_id}` as separate `input` and `output` 
 ---
 
 
-## Installation: Ubuntu 22.04 + CUDA STAGING 
-<span style="color: #777; font-size: 0.9em;"> GPU = true / vLLM integrated </span>
+## Installation: Ubuntu 22.04 + CUDA | STAGING 
 
 
 **Option 1:**
