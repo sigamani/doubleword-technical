@@ -76,10 +76,12 @@ curl http://localhost:8000/v1/batches/{batch_id}
 
 The results will be saved in `/tmp/{batch_id}` as separate `input` and `output` json dumps.
 
+---
+
+
 ## Ubuntu 22.04 + CUDA STAGING 
 <span style="color: #777; font-size: 0.9em;"> GPU = true / vLLM integrated </span>
 
----
 
 **Option 1:**
 <span style="color: #777; font-size: 0.9em;"> Build image </span>
