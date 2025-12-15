@@ -1,4 +1,4 @@
-"""Minimal Ray Data LLM Batch Inference with Typer CLI.
+"""Ray Data LLM Batch Inference with Typer CLI.
 
 Based on: https://github.com/0-mostafa-rezaee-0/Batch_LLM_Inference_with_Ray_Data_LLM/blob/main/notebooks/ray_data_llm_test.ipynb
 """
@@ -9,28 +9,76 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+import ray
 import typer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(help="Minimal Ray Data LLM Batch Inference")
+app = typer.Typer(help="Ray Data LLM Batch Inference")
 
 
-class SimpleBatchProcessor:
-    """Simple batch processor for LLM inference."""
+class RayBatchProcessor:
+    """Ray Data LLM batch processor."""
     
-    def __init__(self, model_name: str = "fallback"):
+    def __init__(self, model_name: str = "fallback", use_ray: bool = True):
         """Initialize processor with a model."""
         self.model_name = model_name
-        logger.info(f"Initialized processor with model: {model_name}")
+        self.use_ray = use_ray
+        logger.info(f"Initialized Ray Data processor with model: {model_name}, use_ray={use_ray}")
     
     def process_batch(self, questions: List[str]) -> List[Dict[str, Any]]:
-        """Process a batch of questions."""
-        logger.info(f"Processing {len(questions)} questions")
+        """Process a batch of questions using Ray Data."""
+        if not self.use_ray:
+            return self._fallback_processing(questions)
         
+        try:
+            # Create Ray dataset from questions
+            ds = ray.data.from_items([{"question": q} for q in questions])
+            logger.info(f"Created Ray dataset with {ds.count()} items")
+            
+            # For now, use simple processing since we don't have real LLM models
+            # In a real implementation, this would use Ray Data LLM processor
+            def simple_process(batch):
+                questions_batch = batch["question"]
+                answers = []
+                for q in questions_batch:
+                    if "capital of France" in q.lower():
+                        answers.append("The capital of France is Paris.")
+                    elif "planets" in q.lower():
+                        answers.append("There are 8 planets in our solar system.")
+                    elif "2+2" in q:
+                        answers.append("2+2 equals 4.")
+                    elif "joke" in q.lower():
+                        answers.append("Why don't scientists trust atoms? Because they make up everything!")
+                    else:
+                        answers.append("I don't have an answer for that question.")
+                
+                batch["answer"] = answers
+                return batch
+            
+            # Apply batch processing
+            result_ds = ds.map_batches(simple_process, batch_size=2)
+            results = result_ds.take_all()
+            
+            # Convert to expected format
+            formatted_results = []
+            for result in results:
+                for q, a in zip(result["question"], result["answer"]):
+                    formatted_results.append({"question": q, "answer": a})
+            
+            return formatted_results
+        
+        except Exception as e:
+            logger.error(f"Ray processing failed: {e}")
+            return self._fallback_processing(questions)
+    
+    def _fallback_processing(self, questions: List[str]) -> List[Dict[str, Any]]:
+        """Fallback processing for when Ray fails."""
+        logger.info("Using fallback processing")
         answers = []
+        
         for q in questions:
             if "capital of France" in q.lower():
                 answers.append("The capital of France is Paris.")
@@ -52,8 +100,22 @@ def process(
     output_file: Path = typer.Argument(..., help="Output file for results"),
     model: str = typer.Option("fallback", help="Model name to use"),
     batch_size: int = typer.Option(4, help="Batch size for processing"),
+    use_ray: bool = typer.Option(True, help="Use Ray for distributed processing"),
 ):
     """Process a batch of questions through LLM inference."""
+    
+    # Initialize Ray if requested
+    if use_ray:
+        logger.info("Initializing Ray...")
+        try:
+            # Try to connect to existing Ray cluster
+            ray.init(address="auto")
+            logger.info("Connected to existing Ray cluster")
+        except Exception as e:
+            logger.info(f"Could not connect to Ray cluster: {e}")
+            logger.info("Starting new Ray instance...")
+            ray.init()
+        logger.info("Ray initialized successfully")
     
     try:
         # Load input data
@@ -62,7 +124,7 @@ def process(
         logger.info(f"Loaded {len(questions)} questions")
         
         # Initialize processor
-        processor = SimpleBatchProcessor(model)
+        processor = RayBatchProcessor(model_name=model, use_ray=use_ray)
         
         # Process in batches
         all_results = []
@@ -77,7 +139,7 @@ def process(
             
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_questions)} questions)")
             
-            # Local processing
+            # Process batch
             batch_results = processor.process_batch(batch_questions)
             all_results.extend(batch_results)
         
@@ -96,11 +158,17 @@ def process(
     except Exception as e:
         logger.error(f"Processing failed: {e}")
         raise typer.Exit(1)
+    
+    finally:
+        if use_ray and ray.is_initialized():
+            ray.shutdown()
+            logger.info("Ray has been shut down")
 
 
 @app.command()
 def demo(
     output_file: Path = typer.Option("demo_results.json", help="Output file for demo results"),
+    use_ray: bool = typer.Option(False, help="Use Ray for distributed processing"),
 ):
     """Run a demo with sample questions."""
     
@@ -118,7 +186,7 @@ def demo(
     
     try:
         # Process demo
-        process(temp_input, output_file, model="fallback", batch_size=4)
+        process(temp_input, output_file, model="fallback", batch_size=4, use_ray=use_ray)
         
         # Display results
         if output_file.exists():
@@ -143,13 +211,13 @@ def serve(
 ):
     """Start a simple API server for batch processing."""
     try:
+        import uvicorn
         from fastapi import FastAPI
         from pydantic import BaseModel
         from typing import List
-        import uvicorn
         
-        app = FastAPI(title="Batch LLM Inference API")
-        processor = SimpleBatchProcessor()
+        app = FastAPI(title="Ray Data LLM Batch Inference API")
+        processor = RayBatchProcessor(use_ray=False)
         
         class BatchRequest(BaseModel):
             questions: List[str]
@@ -163,13 +231,13 @@ def serve(
         
         @app.get("/")
         async def root():
-            return {"status": "healthy", "service": "batch-llm-inference"}
+            return {"status": "healthy", "service": "ray-data-llm-inference"}
         
         logger.info(f"Starting server on {host}:{port}")
         uvicorn.run(app, host=host, port=port)
         
     except ImportError:
-        logger.error("fastapi and uvicorn required for serve command")
+        logger.error("uvicorn and fastapi required for serve command")
         raise typer.Exit(1)
 
 
