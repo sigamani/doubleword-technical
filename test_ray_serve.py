@@ -16,7 +16,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-os.environ["VLLM_USE_MODELSCOPE"] = "false"
 
 @dataclass
 class GenerationResult:
@@ -29,17 +28,14 @@ class GenerationResult:
     finish_reason: Optional[str] = None
     error: Optional[str] = None
 
-def parse_request_body(request) -> Dict:
+async def parse_request_body(request) -> Dict:
     if hasattr(request, "body"):
-        body = request.body.decode("utf-8") if isinstance(request.body, bytes) else request.body
+        body = await request.body()
+        body = body.decode("utf-8") if isinstance(body, bytes) else body
         return json.loads(body)
     return request if isinstance(request, dict) else {"text": str(request)}
 
-def extract_prompt(data: Dict) -> str:
-    return data.get("text", "")
 
-def extract_request_id(data: Dict) -> Optional[str]:
-    return data.get("request_id")
 
 def create_success_result(prompt: str, request_id: Optional[str], output, worker_id: str, elapsed: float) -> GenerationResult:
     completion_output = output.outputs[0]
@@ -68,21 +64,22 @@ class VLLMDeployment:
         logger.info(f"[Worker {worker_id}] vLLM initialized successfully")
 
     async def __call__(self, request):
-        data = parse_request_body(request)
-        prompt = extract_prompt(data)
-        request_id = extract_request_id(data)
+        data = await parse_request_body(request)
+        prompt = data.get("text", "")
+        request_id = data.get("request_id")
         return self._generate_response(prompt, request_id)
 
     def _generate_response(self, prompt: str, request_id: Optional[str]) -> GenerationResult:
         start_time = time.time()
         worker_id = ray.get_runtime_context().get_worker_id()
-        elapsed = time.time() - start_time
         
         try:
             outputs = self.llm.generate([prompt], self.sampling_params)
             output = outputs[0]
+            elapsed = time.time() - start_time
             return create_success_result(prompt, request_id, output, worker_id, elapsed)
         except Exception as e:
+            elapsed = time.time() - start_time
             logger.error(f"[Worker {worker_id}] Generation error: {str(e)}")
             return GenerationResult(
                 prompt=prompt,
@@ -98,16 +95,14 @@ def send_http_request(prompt: str, idx: int) -> Tuple[Optional[GenerationResult]
     start = time.time()
     response = requests.post("http://127.0.0.1:8000/", json={"text": prompt, "request_id": idx}, timeout=30)
     elapsed = time.time() - start
-    return _handle_response(response, idx, elapsed)
+    return _handle_response(response, elapsed)
 
-def _handle_response(response, idx: int, elapsed: float) -> Tuple[Optional[GenerationResult], float]:
+def _handle_response(response, elapsed: float) -> Tuple[Optional[GenerationResult], float]:
     if response.status_code == 200:
         result_dict = response.json()
-        logger.info(f"Request {idx} completed in {elapsed:.2f}s by worker {result_dict.get('worker_id')}")
-        # Convert dict back to GenerationResult for structured handling
         result = GenerationResult(**result_dict)
         return result, elapsed
-    logger.error(f"Request {idx} failed with status {response.status_code}: {response.text}")
+    logger.error(f"Request failed with status {response.status_code}: {response.text}")
     return None, elapsed
 
 def execute_concurrent_requests(prompts: List[str]) -> List[Tuple[Optional[GenerationResult], float]]:
@@ -118,28 +113,14 @@ def execute_concurrent_requests(prompts: List[str]) -> List[Tuple[Optional[Gener
 def calculate_avg_latency(results: List[Tuple[Optional[GenerationResult], float]]) -> float:
     return sum(r[1] for r in results) / len(results)
 
-def extract_worker_ids(results: List[Tuple[Optional[GenerationResult], float]]) -> List[str]:
-    worker_ids = []
-    for result_tuple in results:
-        if result_tuple[0] and result_tuple[0].worker_id:
-            worker_ids.append(str(result_tuple[0].worker_id))
-    return worker_ids
-
-def log_worker_distribution(workers: List[str]):
-    unique_workers = set(workers)
-    logger.info(f"Requests distributed across {len(unique_workers)} workers")
-    for worker_id in unique_workers:
-        logger.info(f"  Worker {worker_id}: {workers.count(worker_id)} requests")
-
 def log_results_summary(results: List[Tuple[Optional[GenerationResult], float]], total_time: float):
     valid_results = [r for r in results if r[0] is not None]
     logger.info(f"Completed {len(valid_results)} requests in {total_time:.2f}s")
     if valid_results:
         logger.info(f"Average request latency: {calculate_avg_latency(valid_results):.2f}s")
-        log_worker_distribution(extract_worker_ids(valid_results))
 
 def run_test_requests(prompts: List[str]):
-    logger.info("Testing distributed vLLM workers via HTTP...")
+    logger.info("Testing distributed vLLM workers via HTTP.")
     start_total = time.time()
     results = execute_concurrent_requests(prompts)
     log_results_summary(results, time.time() - start_total)
@@ -162,7 +143,6 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("Shutting down Ray Serve...")
         serve.shutdown()
 
 if __name__ == "__main__":

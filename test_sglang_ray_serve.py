@@ -30,9 +30,10 @@ class GenerationResult:
     error: Optional[str] = None
     engine: str = "sglang"
 
-def parse_request_body(request) -> Dict:
+async def parse_request_body(request) -> Dict:
     if hasattr(request, "body"):
-        body = request.body.decode("utf-8") if isinstance(request.body, bytes) else request.body
+        body = await request.body()
+        body = body.decode("utf-8") if isinstance(body, bytes) else body
         return json.loads(body)
     return request if isinstance(request, dict) else {"text": str(request)}
 
@@ -78,15 +79,19 @@ def create_mock_response(prompt: str, request_id: Optional[str], worker_id: str,
     )
 
 def initialize_sglang_runtime(worker_id: str):
-    import sglang
-    return sglang.Runtime(model_path="facebook/opt-125m", device="cpu", log_level="error", mem_fraction_static=0.8, max_total_tokens=8192, random_seed=42)
+    try:
+        import sglang
+        return sglang.Runtime(model_path="facebook/opt-125m", device="cpu", log_level="error", mem_fraction_static=0.8, max_total_tokens=8192, random_seed=42)
+    except Exception as e:
+        logger.error(f"[Worker {worker_id}] SGLang initialization failed: {e}")
+        raise
 
 def try_initialize_sglang(worker_id: str):
     try:
         runtime = initialize_sglang_runtime(worker_id)
         logger.info(f"[Worker {worker_id}] SGLang Runtime initialized successfully")
         return runtime
-    except ImportError as e:
+    except (ImportError, ModuleNotFoundError, Exception) as e:
         logger.warning(f"[Worker {worker_id}] Using mock SGLang: {e}")
         return None
 
@@ -100,7 +105,7 @@ class SGLangDeployment:
         logger.info(f"[Worker {worker_id}] SGLang Runtime initialized successfully")
 
     async def __call__(self, request):
-        data = parse_request_body(request)
+        data = await parse_request_body(request)
         prompt = extract_prompt(data)
         request_id = extract_request_id(data)
         return self._generate_response(prompt, request_id)
